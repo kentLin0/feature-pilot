@@ -4,7 +4,7 @@
 
 Every UI-bearing task declares one `UI Delivery Level` and records why that level applies:
 
-This contract is mandatory for UI-bearing work in `fp-execute` and `fp-execute-sdd`.
+This contract is mandatory for UI-bearing work in `fp-figma`, `fp-execute`, `fp-execute-sdd`, and `fp-final-review`.
 
 - `static-only`: only static presentation is in scope. It needs visual `PASS` / `VISUAL_REVIEW_PASS` evidence and an evidence-backed `E2E Applicability: N/A` reason.
 - `interactive`: user interaction is in scope. It requires real browser front-end E2E and `E2E Applicability: REQUIRED`.
@@ -28,7 +28,7 @@ The state order is exact:
 
 Tasks may progress only from left to right. A `static-only` task reaches `FINAL_REVIEW` only after its visual pass and justified E2E N/A record. `interactive` and `business-flow` tasks must reach `FRONTEND_E2E_PASS` with real browser evidence before final review. Required E2E cannot be `SKIPPED` or manual-approved; an unmet requirement is `BLOCKED`.
 
-`VISUAL_REVIEW_PASS` is issued only by a separate, independent, read-only visual-review stage: it must not modify files; it checks only the existing Visual Evidence Manifest `reference`, `current`, and `diff` artifacts against the real runtime route/state; SDD uses a fresh reviewer.
+`VISUAL_REVIEW_PASS` is issued only by a separate, independent, read-only visual-review stage: it may write only its review artifact and must not modify implementation, source-evidence, or lifecycle files; it checks only the existing Visual Evidence Manifest `reference`, `current`, and `diff` artifacts against the real runtime route/state; SDD uses a fresh reviewer.
 
 The visual-review stage records exactly `VISUAL_REVIEW_PASS`, `CANNOT_VERIFY`, or `FAIL`; only `VISUAL_REVIEW_PASS` can advance. `CANNOT_VERIFY` is `BLOCKED`.
 
@@ -87,11 +87,11 @@ Store that matrix with the case evidence, source/requirement reference, applicab
 
 Each applicable condition must be `covered` or explicitly `N/A` / `BLOCKED` with rationale. `covered` records real evidence, `N/A` means the condition is not applicable, and `BLOCKED` means a required condition could not receive safe real-environment evidence.
 
-## Automatic Playwright Bootstrap
+## Browser Capability Gate
 
-Prefer the existing project runner. If it is missing, detect the target frontend root, workspace, lockfile, and package manager, then install `@playwright/test` as a development dependency and Chromium only in that target project. Reuse an existing configuration; create a minimal configuration and current-task skeleton only when none exists.
+Prefer a verified existing project runner, then an installed browser extension, then an existing local `playwright-cli`. If none is available, enter `BROWSER_CAPABILITY_GATE`: report the discovered capabilities, missing prerequisite, browser download/network/disk impact, and project-file impact, then let the customer choose an extension, a global local-CLI installation, or no installation. Display the exact global-install command before it is run; the customer either runs it or explicitly authorizes FeaturePilot to run that exact command for this occasion.
 
-Never install globally, overwrite existing configuration, or upgrade unrelated dependencies. Record the commands, resolved version, and changed files in the E2E evidence. A bootstrap failure or no valid frontend root is `BLOCKED`, never a mock fallback.
+Never silently install a tool or browser component, add or update project dependencies, alter a lockfile, overwrite/create project browser configuration, change CI, or upgrade unrelated dependencies. Record the selected capability, customer authorization when applicable, executed command, version, and resulting artifacts in E2E evidence. If a required E2E has no approved usable capability, it is `BLOCKED`, never a mock fallback.
 
 ## Retry, Blocking, Final Review, and Archive
 

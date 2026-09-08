@@ -395,13 +395,13 @@ $requiredHeadings = @(
     'Case Manifest and E2E Evidence',
     'Real Frontend E2E: No Mock Data or Requests',
     'Coverage Matrix',
-    'Automatic Playwright Bootstrap',
+    'Browser Capability Gate',
     'Retry, Blocking, Final Review, and Archive'
 )
-$canonicalExecutionBinding = 'This contract is mandatory for UI-bearing work in `fp-execute` and `fp-execute-sdd`.'
+$canonicalExecutionBinding = 'This contract is mandatory for UI-bearing work in `fp-figma`, `fp-execute`, `fp-execute-sdd`, and `fp-final-review`.'
 $canonicalStateMachineLine = '`SOURCE_READY -> STATIC_UI_READY -> VISUAL_REVIEW_PASS -> INTERACTION_READY -> FRONTEND_E2E_PASS -> FINAL_REVIEW -> ARCHIVE`'
 $canonicalRequiredE2ERule = 'Required E2E cannot be `SKIPPED` or manual-approved; an unmet requirement is `BLOCKED`.'
-$canonicalVisualReviewLine = '`VISUAL_REVIEW_PASS` is issued only by a separate, independent, read-only visual-review stage: it must not modify files; it checks only the existing Visual Evidence Manifest `reference`, `current`, and `diff` artifacts against the real runtime route/state; SDD uses a fresh reviewer.'
+$canonicalVisualReviewLine = '`VISUAL_REVIEW_PASS` is issued only by a separate, independent, read-only visual-review stage: it may write only its review artifact and must not modify implementation, source-evidence, or lifecycle files; it checks only the existing Visual Evidence Manifest `reference`, `current`, and `diff` artifacts against the real runtime route/state; SDD uses a fresh reviewer.'
 $canonicalVisualReviewResultLine = 'The visual-review stage records exactly `VISUAL_REVIEW_PASS`, `CANNOT_VERIFY`, or `FAIL`; only `VISUAL_REVIEW_PASS` can advance. `CANNOT_VERIFY` is `BLOCKED`.'
 $canonicalStageRollbackLine = 'On visual `FAIL`, return only to `STATIC_UI_READY`; on interaction or required-E2E `FAIL`, return only to `INTERACTION_READY`. Preserve prior visual-pass evidence only while current source and real runtime state still match it; otherwise run visual review again.'
 $canonicalZeroMockRule = 'Real E2E has an absolute zero-mock rule. It must not use `page.route`, `route.fulfill`, MSW, Cypress stubs/intercepts, fixture JSON, mock modules, hard-coded API data, frontend store/localStorage business-data injection, database seed, or direct backend/API writes that bypass the normal UI flow.'
@@ -442,7 +442,7 @@ $canonicalNormativeLines = @(
     '# FeaturePilot UI/E2E Staged Contract',
     '## Applicability and UI Delivery Level',
     'Every UI-bearing task declares one `UI Delivery Level` and records why that level applies:',
-    'This contract is mandatory for UI-bearing work in `fp-execute` and `fp-execute-sdd`.',
+    'This contract is mandatory for UI-bearing work in `fp-figma`, `fp-execute`, `fp-execute-sdd`, and `fp-final-review`.',
     '- `static-only`: only static presentation is in scope. It needs visual `PASS` / `VISUAL_REVIEW_PASS` evidence and an evidence-backed `E2E Applicability: N/A` reason.',
     '- `interactive`: user interaction is in scope. It requires real browser front-end E2E and `E2E Applicability: REQUIRED`.',
     '- `business-flow`: a user-visible flow crosses a real business boundary. It requires real browser front-end E2E, proof of the real core API, `Mocked Core API: false`, the real persistence or permission result, and cleanup of test-created data.',
@@ -457,7 +457,7 @@ $canonicalNormativeLines = @(
     'The state order is exact:',
     '`SOURCE_READY -> STATIC_UI_READY -> VISUAL_REVIEW_PASS -> INTERACTION_READY -> FRONTEND_E2E_PASS -> FINAL_REVIEW -> ARCHIVE`',
     'Tasks may progress only from left to right. A `static-only` task reaches `FINAL_REVIEW` only after its visual pass and justified E2E N/A record. `interactive` and `business-flow` tasks must reach `FRONTEND_E2E_PASS` with real browser evidence before final review. Required E2E cannot be `SKIPPED` or manual-approved; an unmet requirement is `BLOCKED`.',
-    '`VISUAL_REVIEW_PASS` is issued only by a separate, independent, read-only visual-review stage: it must not modify files; it checks only the existing Visual Evidence Manifest `reference`, `current`, and `diff` artifacts against the real runtime route/state; SDD uses a fresh reviewer.',
+    '`VISUAL_REVIEW_PASS` is issued only by a separate, independent, read-only visual-review stage: it may write only its review artifact and must not modify implementation, source-evidence, or lifecycle files; it checks only the existing Visual Evidence Manifest `reference`, `current`, and `diff` artifacts against the real runtime route/state; SDD uses a fresh reviewer.',
     'The visual-review stage records exactly `VISUAL_REVIEW_PASS`, `CANNOT_VERIFY`, or `FAIL`; only `VISUAL_REVIEW_PASS` can advance. `CANNOT_VERIFY` is `BLOCKED`.',
     'On visual `FAIL`, return only to `STATIC_UI_READY`; on interaction or required-E2E `FAIL`, return only to `INTERACTION_READY`. Preserve prior visual-pass evidence only while current source and real runtime state still match it; otherwise run visual review again.',
     '## Case Manifest and E2E Evidence',
@@ -496,9 +496,9 @@ $canonicalNormativeLines = @(
     '- state transitions and concurrency; and',
     '- applicable API pagination, filtering, sorting, and compatibility.',
     'Each applicable condition must be `covered` or explicitly `N/A` / `BLOCKED` with rationale. `covered` records real evidence, `N/A` means the condition is not applicable, and `BLOCKED` means a required condition could not receive safe real-environment evidence.',
-    '## Automatic Playwright Bootstrap',
-    'Prefer the existing project runner. If it is missing, detect the target frontend root, workspace, lockfile, and package manager, then install `@playwright/test` as a development dependency and Chromium only in that target project. Reuse an existing configuration; create a minimal configuration and current-task skeleton only when none exists.',
-    'Never install globally, overwrite existing configuration, or upgrade unrelated dependencies. Record the commands, resolved version, and changed files in the E2E evidence. A bootstrap failure or no valid frontend root is `BLOCKED`, never a mock fallback.',
+    '## Browser Capability Gate',
+    'Prefer a verified existing project runner, then an installed browser extension, then an existing local `playwright-cli`. If none is available, enter `BROWSER_CAPABILITY_GATE`: report the discovered capabilities, missing prerequisite, browser download/network/disk impact, and project-file impact, then let the customer choose an extension, a global local-CLI installation, or no installation. Display the exact global-install command before it is run; the customer either runs it or explicitly authorizes FeaturePilot to run that exact command for this occasion.',
+    'Never silently install a tool or browser component, add or update project dependencies, alter a lockfile, overwrite/create project browser configuration, change CI, or upgrade unrelated dependencies. Record the selected capability, customer authorization when applicable, executed command, version, and resulting artifacts in E2E evidence. If a required E2E has no approved usable capability, it is `BLOCKED`, never a mock fallback.',
     '## Retry, Blocking, Final Review, and Archive',
     'Core visual/E2E gaps and any mock violation remain `BLOCKED` through 3 attempts. They cannot be converted into review debt, `N/A`, `PASS`, a manual approval, or a waived check. `FINAL_REVIEW` and `ARCHIVE` cannot waive these blockers.',
     'After a failure, diagnostic retries may continue only through attempt 3.',
@@ -551,8 +551,8 @@ Assert-Anchors $contract @(
     'FRONTEND_E2E_PASS',
     'E2E Applicability: REQUIRED | N/A',
     'Mocked Core API: false',
-    '@playwright/test',
-    'Chromium',
+    'BROWSER_CAPABILITY_GATE',
+    'playwright-cli',
     'coverage-matrix.md',
     'BLOCKED'
 ) 'shared UI/E2E contract'
@@ -568,7 +568,7 @@ Assert-Condition (
 ) 'shared UI/E2E contract is missing, duplicating, or reordering an exact required ## heading'
 Assert-Condition (
     Test-ExactSentence $applicabilitySection $canonicalExecutionBinding
-) 'shared UI/E2E contract does not bind applicability to fp-execute and fp-execute-sdd'
+) 'shared UI/E2E contract does not bind applicability to every normative consumer'
 Assert-Condition (
     (Test-StateMachineContract $stateMachineSection $canonicalStateMachineLine $canonicalRequiredE2ERule) -and
     (Test-ExactLines $stateMachineSection @($canonicalVisualReviewLine, $canonicalVisualReviewResultLine, $canonicalStageRollbackLine))
@@ -711,7 +711,7 @@ $fencedVisualReviewSection = Get-MarkdownSecondLevelSection (Get-EffectiveNormat
 Assert-Condition (
     -not (Test-ExactLines $fencedVisualReviewSection @($canonicalVisualReviewLine, $canonicalVisualReviewResultLine, $canonicalStageRollbackLine))
 ) 'mutation survived: fenced independent visual review rule'
-$mutatedVisualReviewWrite = Replace-Required $contract 'it must not modify files' 'it may modify files' 'visual review may modify files'
+$mutatedVisualReviewWrite = Replace-Required $contract 'must not modify implementation, source-evidence, or lifecycle files' 'may modify implementation, source-evidence, and lifecycle files' 'visual review may modify files'
 $mutatedVisualReviewWriteSection = Get-MarkdownSecondLevelSection $mutatedVisualReviewWrite 'Required State Machine'
 Assert-Condition (
     -not (Test-ExactLines $mutatedVisualReviewWriteSection @($canonicalVisualReviewLine, $canonicalVisualReviewResultLine, $canonicalStageRollbackLine))

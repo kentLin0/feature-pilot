@@ -242,10 +242,10 @@ $planTemplateBody = Get-CanonicalTemplateBody $planTemplate
 $execute = Read-Utf8 'skills\fp-execute\SKILL.md'
 $executeSdd = Read-Utf8 'skills\fp-execute-sdd\SKILL.md'
 $finalReview = Read-Utf8 'skills\fp-final-review\SKILL.md'
+$finalReviewContract = Read-Utf8 'skills\fp-final-review\final-review-contract.md'
 $archive = Read-Utf8 'skills\fp-archive\SKILL.md'
 $validator = Read-Utf8 'scripts\validate-plugin.ps1'
-$readme = Read-Utf8 'README.md'
-$agents = Read-Utf8 'AGENTS.md'
+$architectureReference = Read-Utf8 'docs\reference\architecture-and-artifacts.md'
 $userGuide = Read-Utf8 'docs\user_guide\init-prd-start.md'
 
 $consumers = @{
@@ -254,6 +254,7 @@ $consumers = @{
     'fp-execute' = $execute
     'fp-execute-sdd' = $executeSdd
     'fp-final-review' = $finalReview
+    'final-review-contract' = $finalReviewContract
     'fp-archive' = $archive
 }
 foreach ($consumer in $consumers.GetEnumerator()) {
@@ -262,7 +263,7 @@ foreach ($consumer in $consumers.GetEnumerator()) {
 
 Assert-Condition (Test-EffectiveTextRegex $shared '(?s)SOURCE_READY\s*->\s*STATIC_UI_READY\s*->\s*VISUAL_REVIEW_PASS.*?FRONTEND_E2E_PASS.*?FINAL_REVIEW\s*->\s*ARCHIVE') 'shared contract lost the required staged lifecycle'
 Assert-Condition (Test-EffectiveTextRegex $shared '(?i)absolute zero-mock rule') 'shared contract lost the zero-mock rule'
-Assert-Condition (Test-EffectiveTextRegex $shared '(?i)@playwright/test.*?Chromium') 'shared contract lost project-local Playwright bootstrap'
+Assert-Condition (Test-EffectiveTextRegex $shared '(?is)playwright-cli.*?BROWSER_CAPABILITY_GATE.*?Never silently install') 'shared contract lost customer-selected browser capability gate'
 Assert-Condition (Test-EffectiveTextRegex $shared '(?i)Mocked Core API: false.*?real persistence or permission result.*?cleanup') 'shared contract lost business-flow closure'
 
 Assert-Condition (Test-EffectiveTextRegex $figma '(?i)Visual and E2E evidence are distinct channels') 'fp-figma must keep visual and E2E evidence distinct'
@@ -315,17 +316,16 @@ $expectedValidatorBlocks = @(
 Assert-Condition (Test-UiE2EValidatorSequence $validator $expectedValidatorBlocks) 'validate-plugin must execute the complete reachable UI/E2E focused validator sequence before its final success output'
 Assert-Condition (Test-ValidationCompletionGuard $validator) 'validate-plugin must wrap validation in a completion guard that rejects early exit/return'
 
-Assert-Condition (Test-EffectiveLineRegex $readme '^ {0,3}##\s+Staged UI/E2E delivery\s*$') 'README must document the staged UI/E2E delivery gate'
-Assert-Condition (Test-EffectiveLineRegex $agents '^ {0,3}##\s+UI/E2E execution and archive gates\s*$') 'AGENTS.md must document the UI/E2E fallback gate'
+Assert-Condition (Test-EffectiveLineRegex $architectureReference '^ {0,3}##\s+UI/E2E') 'architecture reference must document the staged UI/E2E delivery gate'
 Assert-Condition (Test-EffectiveLineRegex $userGuide '^ {0,3}###\s+UI/E2E delivery gate\s*$') 'user guide must document the UI/E2E delivery gate'
-foreach ($documentation in @($readme, $agents, $userGuide)) {
+foreach ($documentation in @($architectureReference, $userGuide)) {
     Assert-Condition (Test-EffectiveTextRegex $documentation '(?i)interactive.*?business-flow.*?real browser.*?(?:no.mock|zero.mock)') 'public documentation must require real no-mock browser E2E for interactive/business work'
-    Assert-Condition (Test-EffectiveTextRegex $documentation '(?i)@playwright/test.*?Chromium.*?target frontend project') 'public documentation must describe project-local automatic Playwright bootstrap'
+    Assert-Condition (([regex]::IsMatch($documentation, '(?i)BROWSER_CAPABILITY_GATE')) -and ([regex]::IsMatch($documentation, '(?i)never\s+silently'))) 'public documentation must describe the customer-selected browser capability gate without silent installation'
     Assert-Condition (Test-EffectiveLineRegex $documentation '(?i)^(?=.*static-only)(?=.*N/A)(?=.*(?:reason|evidence)).*$') 'public documentation must limit static-only E2E N/A to a recorded reason'
     Assert-Condition (Test-EffectiveTextRegex $documentation '(?i)cannot.*?(?:waive|override).*?(?:archive|core UI/E2E)') 'public documentation must make UI/E2E blockers non-waivable before archive'
 }
 
-$sharedReferenceLine = 'Read `${CLAUDE_PLUGIN_ROOT}/skills/_shared/ui-e2e-contract.md` once before executing UI-bearing work; it owns delivery levels, allowed lifecycle paths, real-E2E evidence, zero-mock rules, coverage status semantics, bootstrap, retry, and non-waivable blocking.'
+$sharedReferenceLine = 'Read `${CLAUDE_PLUGIN_ROOT}/skills/_shared/ui-e2e-contract.md` once before executing UI-bearing work; it owns delivery levels, allowed lifecycle paths, real-E2E evidence, zero-mock rules, coverage status semantics, customer-selected browser capability, retry, and non-waivable blocking.'
 $executeWithoutReference = Replace-Required $execute $sharedReferenceLine 'Read the shared contract from a prose summary only.' 'remove direct shared reference'
 $executeWithCommentAndFenceFake = $executeWithoutReference + "`n<!-- $sharedReferenceLine -->`n~~~text`n$sharedReferenceLine`n~~~"
 Require-MutationBaseline (Test-SharedContractReference $execute) 'direct execution shared reference baseline'

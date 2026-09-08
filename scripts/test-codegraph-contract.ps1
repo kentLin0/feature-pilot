@@ -74,7 +74,9 @@ $command = Read-Utf8 (Join-Path $root 'commands\fp-init.md')
 
 foreach ($anchor in @(
     'skills/_shared/codegraph.md',
+    'codegraph-current-state-single-decision',
     'auto-install',
+    'auto-install-no-mcp',
     'show-install-steps',
     'skip-codegraph',
     'npm install -g @colbymchenry/codegraph@latest',
@@ -83,7 +85,7 @@ foreach ($anchor in @(
     'codegraph init <project-root>',
     'codegraph status <project-root> --json',
     'auto-install includes first graph build',
-    'preinstalled-cli-requires-build-confirmation',
+    'cli-available-single-confirmation',
     'refresh-existing-information-layer',
     'stale-generated-intel',
     'refresh-stale-intel',
@@ -92,6 +94,14 @@ foreach ($anchor in @(
 )) {
     Assert-Condition ($init.Contains($anchor)) "fp-init lost anchor: $anchor"
 }
+
+Assert-Condition (-not $init.Contains('configure Agent MCP separately')) 'fp-init goal still describes MCP as a separate authorization'
+$separateAuthorization = ([char]0x72EC).ToString() + [char]0x7ACB + [char]0x6388 + [char]0x6743
+Assert-Condition (-not $init.Contains($separateAuthorization)) 'fp-init JIT handoff still splits the combined CodeGraph authorization'
+$cliUnavailableDecision = [regex]::Match($init, '(?s)#### 2-a\..*?```markdown\s*(?<body>.*?)\s*```')
+Assert-Condition $cliUnavailableDecision.Success 'fp-init CLI-unavailable decision block is missing'
+$cliUnavailableOptionIds = @([regex]::Matches($cliUnavailableDecision.Groups['body'].Value, '\(`(?<id>[a-z0-9-]+)`\)') | ForEach-Object { $_.Groups['id'].Value })
+Assert-Condition ($cliUnavailableOptionIds.Count -eq (@($cliUnavailableOptionIds | Select-Object -Unique).Count)) 'fp-init CLI-unavailable options reuse a stable decision token'
 
 Assert-Condition ($templates.Contains('## Code Map')) 'manifest template lacks Code Map'
 Assert-Condition ($templates.Contains('navigation-hint-only')) 'manifest Code Map can be treated as current proof'
@@ -141,9 +151,9 @@ foreach ($surface in @(
 }
 
 $validator = Read-Utf8 (Join-Path $root 'scripts\validate-plugin.ps1')
-$agents = Read-Utf8 (Join-Path $root 'AGENTS.md')
 $claude = Read-Utf8 (Join-Path $root 'CLAUDE.md')
-$readme = Read-Utf8 (Join-Path $root 'README.md')
+$gettingStarted = Read-Utf8 (Join-Path $root 'docs\getting-started.md')
+$architectureReference = Read-Utf8 (Join-Path $root 'docs\reference\architecture-and-artifacts.md')
 $guide = Read-Utf8 (Join-Path $root 'docs\user_guide\init-prd-start.md')
 
 Assert-Condition ($validator.Contains('test-codegraph-contract.ps1')) 'global validator does not invoke CodeGraph suite'
@@ -152,13 +162,18 @@ Assert-Condition ($validator.Contains('refresh-existing-information-layer')) 'gl
 Assert-Condition ($validator.Contains('dirty-after-write')) 'global validator does not anchor write invalidation'
 Assert-Condition ($validator.Contains('post-write-sync')) 'global validator does not anchor completion sync'
 foreach ($surface in @(
-    @{ Name = 'AGENTS.md'; Text = $agents },
     @{ Name = 'CLAUDE.md'; Text = $claude },
-    @{ Name = 'README.md'; Text = $readme },
+    @{ Name = 'getting-started'; Text = $gettingStarted },
     @{ Name = 'user guide'; Text = $guide }
 )) {
     Assert-Condition ($surface.Text.Contains('CodeGraph')) "$($surface.Name) does not document CodeGraph"
     Assert-Condition ($surface.Text.Contains('npm install -g @colbymchenry/codegraph@latest')) "$($surface.Name) lacks npm-only install command"
+}
+foreach ($surface in @(
+    @{ Name = 'CLAUDE.md'; Text = $claude },
+    @{ Name = 'architecture reference'; Text = $architectureReference },
+    @{ Name = 'user guide'; Text = $guide }
+)) {
     Assert-Condition ($surface.Text.Contains('refresh-existing-information-layer')) "$($surface.Name) lacks existing-information-layer refresh mode"
     Assert-Condition ($surface.Text.Contains('dirty-after-write')) "$($surface.Name) lacks write invalidation"
     Assert-Condition ($surface.Text.Contains('post-write-sync')) "$($surface.Name) lacks completion sync"
