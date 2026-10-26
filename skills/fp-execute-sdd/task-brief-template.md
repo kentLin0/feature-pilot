@@ -44,8 +44,11 @@ Record each logical artifact independently so mixed small/split changes remain e
 Copy only the constraints that apply to this task, preserving exact values:
 
 - `<constraint>`
+- Engineering quality contract: `<controller-resolved absolute plugin path to skills/_shared/engineering-quality.md; mandatory read>`; applicable comment/docstring convention: `<project convention or shared default>`; approved simplification boundaries: `<design owner reference or none>`.
 
 ## Relevant Project Information Layer
+
+- Code standards: `<resolved common/end plugin paths and project rule sources, or N/A>`; applies to: `<appRoot/version>`; confirmed overrides: `<rule IDs, scope and reasons, or none>`. Each independent worker reads the applicable resources under engineering-quality; do not copy their bodies.
 
 This section is the task's `dynamic task context`. Missing optional information-layer files are `N/A`, not blockers.
 
@@ -157,6 +160,7 @@ The report must include:
 - Failing test command and key failure output, unless the task explicitly uses alternative validation.
 - Passing test/lint/build/visual command and key output.
 - Interface/contract evidence.
+- Engineering-quality self-review against the diff: required comments, complexity evidence and any simplification markers with `path:line`, boundaries and upgrade conditions (or none).
 - Required `FIGCAP-*` browser-visible results and required `PRES-*` before/after replay results.
 - Browser capability resolution and any non-PASS reason that prevents overall Figma completion.
 - Case-level Visual Evidence rows and `manifest.md`/`reference.png`/`current.png`/optional `diff.png` provenance, plus separate browser interaction evidence.

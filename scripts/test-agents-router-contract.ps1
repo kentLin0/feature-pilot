@@ -24,7 +24,7 @@ $agents = Read-Utf8 $agentsPath
 
 Assert-Condition (@($agents -split "`r?`n").Count -le 60) 'AGENTS.md is not a low-context router'
 Assert-Condition ($agents.Contains('`AGENTS.md` is a router, not a workflow contract cache.')) 'AGENTS.md does not declare router-only ownership'
-Assert-Condition ($agents.Contains('## Codex fallback router')) 'AGENTS.md lacks the Codex fallback router'
+Assert-Condition ($agents.Contains('## Codex and Cursor skill router')) 'AGENTS.md lacks the Codex and Cursor skill router'
 Assert-Condition ($agents.Contains('## Conditional contract router')) 'AGENTS.md lacks the conditional contract router'
 Assert-Condition ($agents.Contains('| User intent | Read first |')) 'AGENTS.md intent router must be a two-column interface'
 Assert-Condition ($agents.Contains('| Trigger branch | Required read |')) 'AGENTS.md contract router must be a two-column interface'
@@ -32,11 +32,13 @@ Assert-Condition (-not $agents.Contains('| Owns |')) 'AGENTS.md caches owner sum
 
 $intentTargets = @(
     '`skills/fp-init/SKILL.md`'
+    '`skills/fp-prototype-init/SKILL.md`'
     '`skills/fp-explore/SKILL.md`'
     '`skills/fp-eli5/SKILL.md`'
     '`skills/fp-start/SKILL.md`'
     '`skills/fp-prd/SKILL.md`'
     '`skills/fp-quick/SKILL.md`'
+    '`skills/fp-commit/SKILL.md`'
     '`skills/fp-figma/SKILL.md`'
     '`skills/fp-propose/SKILL.md`'
     '`skills/fp-brainstorm/SKILL.md`'

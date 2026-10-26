@@ -28,7 +28,7 @@ If `<project-root>/.codegraph/` exists, read `${CLAUDE_PLUGIN_ROOT}/skills/_shar
 
 ### 1. 用 fp-explore quick 探索项目背景
 
-使用当前运行时原生技能机制加载一次 `fp:fp-explore`，然后向其 `quick` profile 提供下方结构化块。加载顺序如下：如果运行时提供可调用的 `Skill` tool，直接调用 `fp:fp-explore`；否则，如果运行时的 `available skills` 元数据列出了 `fp:fp-explore` 及其 `SKILL.md` 入口路径，就从该路径读取已安装的 FeaturePilot 分发目录中的完整技能说明并严格执行。只有两种机制都无法解析或读取 `fp:fp-explore` 时，才报告插件可用性或安装失败，并停止 quick 流程。不得搜索消费者项目来寻找回退，也不得直接读取消费者项目中的 `skills/fp-explore/SKILL.md`；不要为了探索而加载完整的 `fp-propose` skill；无产物和实现前确认门禁保持不变。
+使用当前运行时原生技能机制加载一次 `fp:fp-explore`，然后向其 `quick` profile 提供下方结构化块。加载顺序如下：如果运行时提供可调用的 `Skill` tool，按共享 workspace 契约的名称映射调用 `fp:fp-explore`（Cursor 使用 `fp-explore`）；否则，使用运行时的 `available skills` 元数据提供的对应 `SKILL.md` 入口，或 Cursor 已确认插件根下的 `skills/fp-explore/SKILL.md`，读取已安装的 FeaturePilot 分发目录中的完整技能说明并严格执行。只有两种机制都无法解析或读取 `fp:fp-explore` 时，才报告插件可用性或安装失败，并停止 quick 流程。不得搜索消费者项目来寻找回退，也不得直接读取消费者项目中的 `skills/fp-explore/SKILL.md`；不要为了探索而加载完整的 `fp-propose` skill；无产物和实现前确认门禁保持不变。
 
 <!-- fp-explore-invoke
 profile: quick
@@ -48,6 +48,8 @@ approved-research-boundary:
 -->
 
 Use `quick-candidate-files`, `quick-reusable-patterns`, and `quick-verification` to build the inline plan. Treat `quick-scope-assessment` as advisory evidence only; `fp-quick` retains the final suitability decision. Keep current source and tests as the implementation truth and preserve the no-FeaturePilot-artifact boundary.
+
+**内部结果消费（不展示）**：按 `fp-explore` 的 Internal return contract 完成交接；在同一上下文加载时保留结果并继续本 skill，不以探索结束作为本轮聊天的结束。用户侧只展示简明中文：有阻塞时进入第 2 步提问，否则直接进入第 3 步展示计划；将影响实现或确认的风险、证据缺口和研究授权需求纳入问题或计划。`fp-explore-invoke`、`fp-explore-return` 与原始字段清单仅供内部消费，不在进度消息或最终答复中复述，也不包装成 HTML 注释、代码块或中间文件展示。
 
 读取 `fp-docs/settings/` 中与当前阶段相关的客户配置；不要读取历史 `fp-docs/changes/` 或 `fp-docs/archive/` 作为上下文依据。小需求必须以当前代码、测试和接口实现为准；若配置与代码冲突，以代码为准并向用户说明。
 
@@ -81,15 +83,18 @@ Use `quick-candidate-files`, `quick-reusable-patterns`, and `quick-verification`
 - **验证方式**：测试、lint、构建、手工检查或浏览器验证。
 - **风险与回退**：只列真实风险。
 
+按 `${CLAUDE_PLUGIN_ROOT}/skills/_shared/engineering-quality.md` 选择满足当前需求的最简单方案；在内联计划中交代新增复杂度的依据和有意延后的边界，不为 quick 新建设计或技术债文件。
+
 在用户确认前不要修改业务代码。用户回复“确认”“继续”“按这个来”等明确许可后再执行。
 
 ### 4. 按计划实现
 
 执行时遵循项目现有模式：
 - 优先补充或调整测试，再写实现；若需求不适合自动化测试，说明原因并提供替代验证。
-- 后端按现有分层顺序修改：model/service/viewset/serializer/url/tests。
+- 后端按项目已有分层和依赖顺序修改，不为本次小需求补建不存在的层。
 - 前端按现有工程约束修改；优先遵循项目现有前端框架、脚本/状态管理写法、项目配置的设计系统、组件和样式 token。
 - 控制改动范围，不顺手重构无关代码。
+- 按共享工程质量契约同步编写/更新 docstring、原因注释及适用的简化标记；完成前对照 diff 自审，缺失必须补齐，不能仅凭测试通过宣告完成。
 - 遇到新阻塞时停下说明，不擅自扩大范围。
 
 首次写入源码、测试、配置、schema 或生成器输入后，将当前图状态标记为 `dirty-after-write`，并 `never query a dirty graph`；剩余定位只使用当前源码搜索。项目在写入前已有 `.codegraph/` 时，在最终汇报或任何写入后的阻塞返回前执行一次 `post-write-sync`：
@@ -106,6 +111,7 @@ codegraph sync <project-root> --quiet
 - 完成了什么
 - 改了哪些关键文件
 - 验证命令及结果
+- 注释自审结果；有意延后的 `path:line`、边界与升级条件（无则写无）
 - CodeGraph `post-write-sync` 的执行、跳过或失败状态
 - 未验证项或残余风险
 

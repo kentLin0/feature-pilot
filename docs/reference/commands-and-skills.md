@@ -1,6 +1,6 @@
 # FeaturePilot 命令与技能参考
 
-FeaturePilot 的公开入口按“你现在要解决什么问题”组织。Claude Code 使用 `/fp-*` 命令；Codex 与 DeepSeek Harness 把这些名称当作工作流标签，并加载对应的 `fp:*` skill。
+FeaturePilot 的公开入口按“你现在要解决什么问题”组织。Claude Code 使用 `/fp-*` 命令；Cursor 使用同名原生 skill；Codex 与 DeepSeek Harness 把这些名称当作工作流标签，并加载对应的 `fp:*` skill。
 
 命令文件是薄入口，真正的流程、门禁和恢复规则由 `skills/` 中的同名 skill 负责。本文帮助人选择入口，不替代运行时契约。
 
@@ -11,11 +11,13 @@ FeaturePilot 的公开入口按“你现在要解决什么问题”组织。Clau
 | 快速了解仓库现状、调用链或方案差异 | `fp-explore` | 只读事实与选项，不推进开发流程 |
 | 把复杂概念讲给零基础读者 | `fp-eli5` | 直接展示中文图解，默认不写仓库 |
 | 初始化或刷新 FeaturePilot 工作区 | `fp-init` | 最小 `fp-docs/manifest.md`，其他信息按批准创建 |
-| 把模糊想法澄清成 PRD | `fp-prd` | 经访谈和确认的 PRD；UI-heavy 场景可先做原型 |
+| 已 init，只想补建或刷新原型基座 | `fp-prototype-init` | 同框架、全 Mock 的独立基座，不重跑信息层初始化 |
+| 把模糊想法澄清成 PRD | `fp-prd` | 经产品访谈和确认的 PRD；原型需用户显式选择 |
 | 从 PRD 或需求启动完整开发 | `fp-start` | 提案、设计、计划、执行、终审与归档主线 |
 | 快速完成一个小而明确的修改 | `fp-quick` | 跳过完整文档链，但保留探索、确认与验证 |
+| 审查后提交当前代码 | `fp-commit` | 检查规范、修复问题并提交；显式 auto 可推送并创建未合并的 PR/MR |
 | 根据 Figma 改造 UI | `fp-figma` | 设计映射、实现、视觉与能力证据 |
-| 从已确认设计准备开发评审 | `fp-design-review` | 可评审的 `review.md` 入口 |
+| 从已确认设计准备开发评审 | `fp-design-review` | 独立可读的完整 review.md 评审文档 |
 | 审计或实施达梦、OceanBase 适配 | `fp-db-adapter` skill | 两阶段数据库适配方案、确认、实施与验证 |
 | 提升单元测试覆盖率 | `fp-coverage` | 冻结口径、分批补测、完整验证 |
 | 审查大型模块并受控修复 | `fp-module-review` | 稳定 Finding、分 wave 审查与批准后修复 |
@@ -29,11 +31,13 @@ FeaturePilot 的公开入口按“你现在要解决什么问题”组织。Clau
 | Claude Code 命令 | 对应 skill | 何时使用 |
 |---|---|---|
 | `/fp-init` | `fp-init` | 第一次采用 FeaturePilot，或刷新已有信息层与可选 CodeGraph |
+| `/fp-prototype-init [app-id 或 app-root]` | `fp-prototype-init` | 单独创建、复用或刷新前端原型基座；不需要重跑 fp-init |
 | `/fp-explore <问题>` | `fp-explore` | 在选择流程或修改代码前调查事实、行为、约束、风险与方案 |
 | `/fp-eli5 <主题>` | `fp-eli5` | 明确需要零基础专业图解时；默认直接展示，不依赖原始 HTML 标签或 Mermaid，默认不写仓库；只有显式要求且宿主支持时才使用专用网页图解 |
 | `/fp-prd <想法>` | `fp-prd`、`fp-prd-grill-me` | 明确要创建、编写、修订或补全 PRD 时 |
 | `/fp-start <slug 或需求>` | `fp-start` | 执行从提案到归档的完整主线，或恢复中段产物 |
 | `/fp-quick <需求>` | `fp-quick` | 单一模块内的小功能、局部 bugfix、文案或状态微调 |
+| `/fp-commit [auto]` | `fp-commit` | 审查修复后提交；显式 auto 推送并向远端默认分支创建 PR/MR，不自动合并 |
 | `/fp-figma <Figma node URL>` | `fp-figma` | 从可信 Figma 节点实现或完善当前项目 UI |
 | `/fp-design-review <slug>` | `fp-design-review` | 从已确认设计生成或刷新开发设计评审入口 |
 | `/fp-coverage <目标>` | `fp-coverage` | 提升 line、branch、function、statement 或组合覆盖率 |
@@ -52,6 +56,12 @@ FeaturePilot 的公开入口按“你现在要解决什么问题”组织。Clau
 ### Codex 与 DeepSeek Harness
 
 `/fp-*` 是工作流标签，而不是 Claude Code 风格的斜杠命令实现。安装后可以直接要求运行时使用 `fp:fp-start`、`fp:fp-prd` 等 skill。根目录 `AGENTS.md` 是 Codex fallback router，会把意图映射到同一套 `skills/`。
+
+### Cursor
+
+在聊天框输入 `/`，选择 `fp-start`、`fp-prd` 等原生 skill；也可用自然语言明确要求使用对应 skill。Cursor manifest 直接指向共享 `skills/`，通过 `commands: []` 排除 Claude 的薄命令适配器，因此无需为每个入口维护一份 Cursor command。上方“Claude Code 命令”表描述的是 Claude 命令文件；Cursor 从对应 skill 获得流程，`fp-db-adapter` 等没有 Claude command 文件的技能也可被发现。[Cursor skill 调用说明](https://cursor.com/docs/skills#how-skills-work)
+
+Cursor 的路径适配 rule 帮助把共享资源定位到实际插件根目录；它不替代 skill 的确认、执行和验证要求。安装与加载检查见 [Cursor 安装指南](../getting-started.md#cursor)。
 
 ### 内部子技能
 
@@ -77,9 +87,13 @@ FeaturePilot 的公开入口按“你现在要解决什么问题”组织。Clau
 
 ## 专项流程
 
+### 提交与 PR/MR
+
+`fp-commit` 在入口一次性选择执行终点、推送目的地、PR/MR 目标与合并意向，再核对规范、审查修复并执行已选步骤。普通模式不重复询问已选项，最终合并仍需检查通过后的明确确认；显式 `auto` 创建 PR/MR 后停止。适用条件、规范沉淀与停止边界见 [fp-commit 用户指南](../user_guide/fp-commit.md)。
+
 ### 需求与完整开发
 
-阅读 [初始化、PRD 与完整主线](../user_guide/init-prd-start.md)，了解 `fp-init → fp-prd → fp-start` 的使用方式、Prototype-first 和阶段确认。
+阅读 [初始化、PRD 与完整主线](../user_guide/init-prd-start.md)，了解 `fp-init → fp-prd → fp-start` 的使用方式、原型显式选择和各阶段确认。
 
 ### 覆盖率提升
 
@@ -92,8 +106,12 @@ FeaturePilot 的公开入口按“你现在要解决什么问题”组织。Clau
 ### Figma 与设计评审
 
 - `fp-figma` 面向可信 Figma node，保留既有行为并建立视觉、能力和 E2E 证据；
-- `fp-design-review` 把已确认设计整理成开发者可评审的入口，不代替设计确认；
+- `fp-design-review` 先核对 canonical design 是否足够评审，再生成独立可读的完整 `review.md`；信息不足时返回 `fp-brainstorm` 定点修订，不在评审阶段重新设计；
 - UI/E2E 与 Figma 的专业证据边界见 [架构与产物参考](architecture-and-artifacts.md)。
+
+FeaturePilot 生成面向人阅读的叙述性文档和文字报告时，统一遵循仓库内共享文档风格契约，包含用户给出的六条简明写作规则。仅在实际准备输出文档时按需加载，不在探索、访谈或只读检查阶段预读；既有事实、精确技术内容和固定 schema 不因文风而改变。
+
+`review.md` 是独立可读的完整评审文档。
 
 ### 数据库适配
 

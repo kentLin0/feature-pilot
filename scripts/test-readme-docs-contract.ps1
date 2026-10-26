@@ -36,7 +36,9 @@ foreach ($anchor in @(
     'FeaturePilot'
     '## Claude Code'
     '## Codex'
+    '## Cursor'
     '## DeepSeek Harness'
+    'install-cursor-plugin.ps1'
     'sync-plugin-runtimes.ps1'
     '-VerifyOnly'
     'validate-plugin.ps1'
@@ -60,6 +62,7 @@ foreach ($anchor in @(
     'fp-db-adapter'
     '../user_guide/fp-coverage.md'
     '../user_guide/fp-module-review.md'
+    '../user_guide/fp-commit.md'
     '../getting-started.md'
 )) {
     Assert-Condition ($commandsReference.Contains($anchor)) "commands reference lost anchor: $anchor"
@@ -98,6 +101,7 @@ foreach ($anchor in @(
     '1.0.0'
     'Claude Code'
     'Codex'
+    'Cursor'
     'DeepSeek Harness'
     'fp-init'
     'fp-explore'

@@ -2,6 +2,16 @@
 
 Read this file only after the final PRD confirmation summary is approved and immediately before writing or validating `prd.md` or `prd/00-index.md` plus its fragments.
 
+## PRD audience and voice
+
+默认读者为产品经理、业务方、设计师和研发评审者。使用直接、可理解的产品语言。
+
+- 每个功能先说明用户、问题和价值，再说明规则、交互、异常和结果。
+- 只描述 Who / Why / What / Rule / Outcome，不描述 How。
+- 代码探索结果必须先转换为用户可感知的当前行为，再写进 PRD。
+- 代码和实现证据不得直接复制到 PRD；除非用户明确要求技术型 PRD，正文不得包含源码路径、文件名、行号、类名、函数名、模型名、接口名、字段设计、数据库/队列/事务实现、构建命令、端口、SHA、Git 状态或验证计数。
+- 实现方式进入 proposal、design 和 tasks；原型技术元数据只保存在 prototype manifest 与 evidence。
+
 ## Representation rules
 
 - Small form is `fp-docs/changes/<slug>/prd.md`; split form is `fp-docs/changes/<slug>/prd/00-index.md` plus indexed fragments. `prd.md` and `prd/` are mutually exclusive.
@@ -19,7 +29,7 @@ Read this file only after the final PRD confirmation summary is approved and imm
 ```
 
 - Write fragments directly on semantic boundaries. Logical concatenation in fragment manifest order must pass logical template validation against the mandatory structure below: each required heading/table has exactly one owner and appears in the same order.
-- Keep each complete `3.N` feature block, including its four subsections, in one fragment. The owner of `3.N.4 原型` uniquely references `prototype.html`; indexes and other fragments do not duplicate that detail.
+- Keep each complete `3.N` feature block, including its four subsections, in one fragment. The owner of `3.N.4 原型` uniquely references the resolved native `prototype/manifest.json` and preview, or legacy `prototype.html`; indexes and other fragments do not duplicate that detail. Rendering/asset resolution follows `${CLAUDE_PLUGIN_ROOT}/skills/_shared/prototype-contract.md`, independently of PRD splitting.
 
 ## Structure rules
 
@@ -28,6 +38,8 @@ Read this file only after the final PRD confirmation summary is approved and imm
 - Empty sections remain and say `不适用` or `无，原因：...`.
 - Complex interactions require Mermaid. For a simple flow, explain in chapter 2 why no diagram is needed.
 - `六、待确认问题` contains only non-blocking items; write `无` when empty.
+- 以下加粗内容标签属于现有章节内的写作槽位，不是新增标题或表格 schema。用已确认业务内容替换占位；适用性由 `fp-prd-grill-me` 的 Business-first analysis 决定。简单变化可简述不变/不适用及原因，新业务明确无现状；只保留适用的示例行，不套用示例中的业务步骤。
+- 当前事实注明来源，用户决策注明确认依据，明确授权的假设在对应位置标注；跨功能共用流程/状态在唯一 owner 详述，其他功能引用，不复制。
 
 ````markdown
 # <产品/功能名称> PRD
@@ -40,20 +52,30 @@ Read this file only after the final PRD confirmation summary is approved and imm
 
 ### 1.2 业务问题与预期目标
 
-<业务问题、当前痛点、预期目标和成功状态。>
+<业务问题、当前痛点、预期目标和可观察的成功状态；指标与阈值只使用已确认值。>
+
+**本次范围**：<MVP 包含什么、不做什么，以及交付边界。>
 
 ## 二、核心业务流程
 
-<!-- 简单功能可说明无需流程图；复杂交互必须给 mermaid。 -->
+**现状流程**：<当前业务从触发到结果的链路、参与角色/系统及依据；新业务写“无现有流程”。>
+
+**目标流程**：<业务触发、准入条件、处理责任、跨角色/系统交接、结束条件和结果反馈；没有变化的环节明确保留。>
+
+<!-- 简单功能可说明无需流程图及理由；复杂交互按真实业务替换节点，覆盖关键分支，不套用示例流程。 -->
 
 ```mermaid
 flowchart TD
-    A[用户进入页面] --> B[执行操作]
-    B --> C{系统校验}
-    C -->|通过| D[执行业务动作]
-    C -->|失败| E[展示错误提示]
-    D --> F[展示结果/刷新数据]
+    A[业务触发] --> B{满足准入条件?}
+    B -->|否| C[拒绝受理并说明原因]
+    B -->|是| D[责任角色或系统处理业务对象]
+    D --> E{业务结果是否确定?}
+    E -->|是| F[进入对应终态并反馈结果]
+    E -->|否| G[保留待处理状态并交给补救责任方]
+    G --> H[按已确认规则继续处理或结束]
 ```
+
+**变化与影响**：<逐项说明入口/流程/规则/状态/展示的变化，以及受影响角色和用户端/后台/外部系统；“不变”须说明相关现有能力及证据如何满足目标流程，“不适用”须说明原因。>
 
 ## 三、功能需求
 
@@ -61,25 +83,35 @@ flowchart TD
 
 #### 3.1.1 功能说明
 
-<该功能做什么，解决哪个用户故事。>
+<该功能做什么，解决哪个用户故事，承接第二章的哪个业务环节。>
+
+**业务规则**：<谁在什么前置条件下可对哪个业务对象执行什么动作；关键字段、校验/额度/时间边界及冲突规则，按适用性写明；不写技术实现方案。>
 
 #### 3.1.2 交互逻辑
 
-- 用户点击 <操作>，系统显示 <反馈/弹窗/页面>。
-- 用户输入 <内容>，系统执行 <校验/查询/提交>。
-- 用户确认 <动作>，系统 <调用接口/刷新状态/记录日志>。
+**业务状态与流转**：<对有生命周期的对象逐项描述下列内容；无业务状态变化时写明理由，不拿 loading/empty/error 页面状态代替。>
+
+- <当前业务状态>：触发条件 <事件与准入规则>；执行角色 <用户/运营/审核者/系统>；下一状态或退出条件 <结果/终态>；允许操作 <角色可做/不可做什么>；结果可见位置 <谁在哪里得知进展与结果>。
+
+**页面与操作映射**：<将已确认规则和状态映射到页面；纯后台/API 需求说明对应的调用方可观察结果。>
+
+- 用户执行 <操作>，满足 <业务规则/权限/状态> 时，系统 <受理/拒绝> 并显示 <反馈>。
+- <角色/系统> 完成 <业务动作> 后，业务对象进入 <状态>，相关端展示 <一致的进展/结果和可用操作>。
 
 #### 3.1.3 异常处理
 
 | 异常场景 | 触发条件 | 系统处理方式 | 用户提示 |
 |---|---|---|---|
-| <异常场景> | <条件> | <处理方式> | <提示文案> |
+| <异常场景> | <事件、前置状态与边界> | <停留/回退/进入的业务状态；补救责任与恢复/终止规则；是否允许重试/取消> | <对应角色看到的提示、可执行动作及最终结果查看位置> |
 
 #### 3.1.4 原型
 
-- 原型文件：`prototype.html`（如生成）
-- 原型依据：<已有页面 / Figma / 截图 / UI/UX spec>
-- 未生成原因：<如不需要原型>
+- 原型入口：<prototype/preview/index.html 或遗留 prototype.html 的相对链接；注明原型仅保留本地、不随 Git 提交>
+- 演示范围：<该原型演示了哪些页面、状态和交互>
+- 已确认结论：<从原型确认的产品规则、文案和可见状态>
+- 未覆盖范围：<原型没有证明的业务规则、权限、版本、异常或后台能力>
+
+原型小节只记录上文四项。原型模式、源码与 Mock 入口、基座与哈希、构建/预览命令与 cwd、端口、资源清单、网络与浏览器验证记录、Git ignore/index 状态一律只保存在 `prototype/manifest.json` 与原型 evidence，不写入 PRD。
 
 ## 四、非功能需求
 
@@ -105,14 +137,28 @@ flowchart TD
 
 | 场景 | 前置条件 | 操作 | 预期结果 |
 |---|---|---|---|
-| <核心业务场景> | <条件> | <动作> | <结果> |
-| <异常场景> | <条件> | <动作> | <结果> |
-| <权限场景> | <条件> | <动作> | <结果> |
+| <核心业务场景> | <角色、业务状态、准入条件> | <触发并完成业务链路> | <最终业务结果及各端可见反馈> |
+| <状态/规则边界> | <前置状态、权限及边界值> | <合法/非法操作或跨角色交接> | <允许/拒绝结果、下一状态及操作权限> |
+| <异常场景> | <失败/中断/结果未知的前置条件> | <触发异常并按规则补救> | <业务停留/恢复/结束状态、补救责任与用户反馈> |
+| <权限场景> | <无权角色/不可见对象> | <尝试查询或操作> | <拒绝且业务数据不被越权改变> |
+| <不改链路回归> | <声明沿用的现有能力及输入> | <执行受本次变更影响的原有链路> | <既有行为与新流程兼容的可观察结果> |
 
 ## 六、待确认问题
 
 - <仅记录非阻塞问题；如果没有，写“无”。每条必须说明为什么不阻塞。>
 ````
+
+## Document readability self-review
+
+Apply `${CLAUDE_PLUGIN_ROOT}/skills/_shared/document-style.md` after resolving the complete logical PRD.
+
+- 按 fragment manifest 顺序检查完整 logical PRD，同时检查每个分片的局部结构。
+- 固定六章结构和必需四级标题保持不变；四级标题属于固定 schema 例外。
+- 每个功能先说明用户、问题、价值和业务结果，再说明规则、交互与异常。
+- 普通段落主题单一，术语与指代清楚；实现证据先转换为产品语言。
+- 不为缩短句子而拆散完整业务规则，也不得引入实现语言。
+- 表格只承载结构化规则、异常、日志和验收信息，不重复相邻正文。
+- 纯表达缺陷可依据已确认内容修复；可能改变产品含义时返回 `fp-prd-grill-me`。
 
 ## Structure self-review
 
@@ -125,5 +171,26 @@ flowchart TD
 - Required tables retain their exact columns.
 - User story, goal, requirements, exceptions, permissions, logs, and tests align.
 - Complex flows have Mermaid; simple flows explain why no diagram is needed.
-- Prototype decision is explicit; generated prototypes implement the confirmed core interactions.
+- Prototype decision is explicit and the user selected it; generated prototypes implement the confirmed core interactions.
 - No `TBD`, `TODO`, `待补充`, `按需处理`, or `类似上面` remains.
+
+## Product-language self-review
+
+- 不看代码也能理解需求价值和完整业务流程；业务的开始、流转、结束和异常收束都能说清。
+- 正文不含源码路径、文件名、行号、类名、函数名、模型名、接口名和字段设计。
+- 正文不含 SHA、端口、启动命令、Git 状态、构建日志、文件数或资源计数。
+- 当前实现事实已转换为用户可感知行为；页面描述没有替代业务规则。
+- PRD 没有提前决定 proposal/design 阶段的实现方案。
+- 原型技术元数据只存在于 manifest/evidence；PRD 原型小节只有入口、演示范围、已确认结论和未覆盖范围。
+- 所有首次出现的业务术语都能被非研发读者理解。
+- “关联、绑定、归属、同步、继承、自动升级”等关系词都有用户明确确认的来源。
+- 产品读者检查：不懂代码的产品经理能否只看这份 PRD，说明谁在什么条件下做什么、业务对象如何流转、失败后如何恢复、结果在哪里可见？必须理解代码、API、数据库或构建命令才成立的 PRD 不通过。
+
+## Business-closure self-review
+
+- **拿掉页面仍可解释业务**：现状与依据、目标链路、变更点、角色/系统责任、MVP/不做范围和业务结果明确；新业务和简单变化给出适用性说明。
+- **状态与规则闭环**：适用的每个业务状态都有进入触发、执行者、允许操作、退出/下一状态和结果可见位置；不存在无说明的死路或只用页面状态替代业务状态。规则有前置条件、判断边界和处理结果。
+- **异常形成业务闭环**：关键失败/中断/未知结果不只给提示，还说明业务对象去向、恢复或终止条件、补救责任及反馈；异步/重复操作场景按适用性覆盖，未确认策略无法自行补齐。
+- **不改结论可追溯**：后台/外部系统不改有具体能力和证据支撑，能满足新流程；估计、旧文档或未验证源码不能成为已确认事实。授权假设清楚标注，不冒充验证结论。
+- **页面与验收对齐**：页面/原型反映已确认状态与规则；第五章覆盖核心链路、状态/规则边界、相关异常、权限、跨角色交接和不改链路回归，结果可观察且与目标一致。只验证点击和提示不算业务验收。
+- **确认仍有效**：原型只证明已演示部分；新增的阻塞产品问题返回 `fp-prd-grill-me`，更新摘要获批后再修订。第六章只含有明确非阻塞理由的问题，不以填满模板替代产品确认。

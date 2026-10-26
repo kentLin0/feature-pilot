@@ -5,7 +5,13 @@ Read this file once per FeaturePilot workflow. Reuse it when later `fp-*` skills
 ## Plugin resource anchoring
 
 If any anchored plugin resource is missing or unreadable, stop, report the exact resource and an incomplete FeaturePilot installation/cache, and never search the consumer repository for `skills/**` or continue without it.
-下文以 `${CLAUDE_PLUGIN_ROOT}/...` 表示 Claude Code 安装后的插件资源。在 Codex/Markdown 中，从 available-skill 元数据提供的当前技能入口映射同一个 `skills/...` 插件相对路径。两端都不得在消费者项目中搜索插件文件。在 DeepSeek Harness 中，`${CLAUDE_PLUGIN_ROOT}/skills` 映射到当前 skill 的 base directory 的父目录，`_shared/` 与各 `fp-*` skill 目录同级。
+下文以 `${CLAUDE_PLUGIN_ROOT}/...` 表示 Claude Code 安装后的插件资源。在 Codex/Markdown 中，从 available-skill 元数据提供的当前技能入口映射同一个 `skills/...` 插件相对路径。各运行时都不得在消费者项目中搜索插件文件。在 DeepSeek Harness 中，`${CLAUDE_PLUGIN_ROOT}/skills` 映射到当前 skill 的 base directory 的父目录，`_shared/` 与各 `fp-*` skill 目录同级。
+
+### Cursor loading adapter
+
+- Cursor 从原生 `skills/` 加载同一套 `SKILL.md`；共享指令中的 `fp:fp-*` 映射为 Cursor 的短名称 `fp-*`。优先使用确实可调用的运行时原生技能机制；不要求 Claude Code 的 `Skill` tool 或 command。
+- 插件根来自 Cursor 提供的当前已安装 `skills/fp-*/SKILL.md` 入口，或已加载的 `adapters/cursor/rules/featurepilot.mdc` 来源路径。首次可相对当前 skill 目录读取 `../_shared/workspace-rules.md`。`${CLAUDE_PLUGIN_ROOT}` 在这里是该已确认根目录的逻辑别名，不是 Cursor 对 Markdown 环境变量替换的保证；传给文件或 shell 工具前必须解析成实际路径。
+- 子 skill 的 `available skills` 元数据可以使用 `fp-*` 短名称。无原生加载工具时，从元数据入口或已经确认的同一插件根读取确切的 `skills/<skill-name>/SKILL.md` 全文；这属于文件读取 fallback，不声称已调用不存在的工具。缺少可信来源或目标资源时停止并报告不完整安装，禁止通过消费者项目搜索或猜测用户目录来补齐。
 
 ## Root and read order
 
@@ -23,11 +29,19 @@ A `manifest-only workspace is valid`. Optional settings, `intel/project-facts.md
 - Language precedence is: current explicit user instruction, then an explicit target-project setting, then Chinese by default. A project setting never overrides the current user's explicit language request.
 - Preserve necessary English for code, commands, file paths, package/class/function/variable names, API fields, protocol terms, standard technical terms, and schema headings or enum values that another contract requires to match exactly.
 
+## Document-style on-demand route
+
+仅在实际准备输出面向人阅读的叙述性文档或文字报告时，才按 `${CLAUDE_PLUGIN_ROOT}/skills/_shared/document-style.md` 加载共享写作规则。适用写入门禁通过后、读取输出模板前加载；直接展示的文字报告在形成内容前加载。同一工作流已加载时复用，不重复读取。不在启动、意图判断、探索、访谈、只读检查或等待授权时预加载；无文档产出时不读取。已具备 JIT 加载的 PRD、proposal、design 和 review 保留原顺序，不另行提前加载。
+
 ## Evidence and precedence
 
 - Generated intel is stale-prone navigation, never proof of current behavior. Revalidate exact files, contracts, commands, components, routes, permissions, and schemas from current source/config/command output.
 - Current code and command output win for current-state facts. Approved PRD/proposal/design/tasks win for target-state requirements.
 - Public skills must not hardcode customer vendors, component libraries/prefixes, design tokens, backend frameworks, API envelopes, or workflow policy. Put customer rules in target-project settings.
+
+## Engineering quality route
+
+技术设计、任务规划、代码实现/修复及设计或代码 review，必须先读取 `${CLAUDE_PLUGIN_ROOT}/skills/_shared/engineering-quality.md`；它统一规定有意义的强制注释、Python/Django 条件细则、避免过度设计、有意简化记录和完成前检查，并通过“已登记技术栈规范”按相关 settings 消费内置规范及客户覆盖。独立子代理必须收到控制器解析后的契约路径并自行读取；不得只依赖会话继承。纯产品讨论和只读探索不触发此契约。
 
 ## Optional CodeGraph route
 
@@ -36,10 +50,12 @@ A `manifest-only workspace is valid`. Optional settings, `intel/project-facts.md
 ## Compatibility and ownership
 
 - Missing `fp-docs/manifest.md` does not block normal workflows. Recommend `/fp-init`, continue from current code/settings when safe, and create only artifacts owned by the active phase.
-- Only `fp-init` may create or repair project-level `manifest.md`, `settings/`, or `intel/`, and it requires approval before overwriting existing files.
+- Only `fp-init` may create the main project `manifest.md`, `settings/`, or `intel/`; it owns full information-layer maintenance, and existing files require explicit approval. Narrow exception: an explicitly invoked `fp-commit` may edit only an existing, approved `settings/code-standards.md` already listed in the applicable app's `Project rule sources`; it cannot create that file or change registration, other settings, intel or the manifest. The `fp-prototype-init` exception below likewise does not grant general information-layer ownership.
+- Prototype setup/consumption follows `${CLAUDE_PLUGIN_ROOT}/skills/_shared/prototype-contract.md`. `fp-prototype-init` owns approved project-level `fp-docs/prototype-bases/<app-id>/` source/Mock/build artifacts and may edit only the `Prototype Bases` section of an existing main manifest after its exact diff is approved. It must not create the main manifest or modify other sections/settings/intel. `fp-init` delegates base work to it; PRD writes its approved change-local `prototype/` only. Recorded commands are not execution permission; the global entry remains `fp-docs/manifest.md`.
 - `intel/unknowns.md` and `intel/decisions.md` are human-owned and lazy. Other workflows keep ordinary unknowns/decisions change-local or ask the user; absence is never a blocker.
 - `v2 never creates or refreshes legacy files`. For one release, manifest-listed `unknowns-and-decisions.md`, `refresh-policy.md`, `sdd-handoff.md`, and older generated intel have `legacy-information-layer-read-compatibility` as optional read-only hints only. They are not current proof or required inputs; no workflow, including `fp-init`, produces or refreshes them.
 - Requirement/design/plan/execution phases may write only the active change under `fp-docs/changes/<slug>/` plus its execution state.
+- Narrow prototype-gitignore-guard exception: fp-prototype-init, fp-prd and fp-archive may maintain only the approved managed block in `fp-docs/.gitignore` before prototype work. Preserve other rules; keep this control file versioned while prototype bases/change/archive assets remain local-only. This is not permission to alter the rest of the information layer or Git index without its own exact approval.
 - Artifact layout is governed by the mandatory artifact-layout contract already loaded by the owning skill. Every PRD, proposal, design, and task-plan Producer or Consumer must follow it for canonical paths, semantic splitting, safety limits, manifests, ownership, overview rules, resolution, and historical structural-conflict rejection. There is no compatibility fallback.
 - `.fp-execute/progress.md` is an append-only recovery/evidence log, not a second completion authority. The single checkbox in the resolved task-owner file is the planned completion state. On mismatch, inspect the owner file, git history, tests, and actual implementation, then reconcile checkbox and ledger before continuing; never declare completion from a ledger-only record or blindly re-execute it.
 - `fp-archive` may only move the confirmed active change to `fp-docs/archive/` and update `fp-docs/history/history.md` after its confirmation gate.

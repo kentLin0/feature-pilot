@@ -488,6 +488,14 @@ Assert-Condition (Test-Path $readmeDocsContractValidator) 'focused README/docs c
 & powershell -NoProfile -ExecutionPolicy Bypass -File $readmeDocsContractValidator
 Assert-Condition ($LASTEXITCODE -eq 0) 'focused README/docs contract validator failed'
 
+# Cursor packages shared skills independently; cover both discovery and safe local updates.
+foreach ($cursorSuite in @('test-cursor-plugin.ps1', 'test-cursor-install.ps1')) {
+    $cursorValidator = Join-Path $root ('scripts\' + $cursorSuite)
+    Assert-Condition (Test-Path $cursorValidator) "Cursor validator is missing: $cursorSuite"
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $cursorValidator
+    Assert-Condition ($LASTEXITCODE -eq 0) "Cursor validator failed: $cursorSuite"
+}
+
 $agentsRouterValidator = Join-Path $root 'scripts\test-agents-router-contract.ps1'
 Assert-Condition (Test-Path $agentsRouterValidator) 'focused AGENTS router validator is missing'
 & powershell -NoProfile -ExecutionPolicy Bypass -File $agentsRouterValidator
@@ -522,6 +530,16 @@ $initInformationLayerValidator = Join-Path $root 'scripts\test-init-information-
 Assert-Condition (Test-Path $initInformationLayerValidator) 'focused init information-layer contract validator is missing'
 & powershell -NoProfile -ExecutionPolicy Bypass -File $initInformationLayerValidator
 Assert-Condition ($LASTEXITCODE -eq 0) 'focused init information-layer contract validator failed'
+
+$stackStandardsValidator = Join-Path $root 'scripts\test-stack-standards-contract.ps1'
+Assert-Condition (Test-Path $stackStandardsValidator) 'focused stack standards contract validator is missing'
+& powershell -NoProfile -ExecutionPolicy Bypass -File $stackStandardsValidator
+Assert-Condition ($LASTEXITCODE -eq 0) 'focused stack standards contract validator failed'
+
+$commitContractValidator = Join-Path $root 'scripts\test-fp-commit-contract.ps1'
+Assert-Condition (Test-Path $commitContractValidator) 'focused fp-commit contract validator is missing'
+& powershell -NoProfile -ExecutionPolicy Bypass -File $commitContractValidator
+Assert-Condition ($LASTEXITCODE -eq 0) 'focused fp-commit contract validator failed'
 
 $figmaEvidenceValidator = Join-Path $root 'scripts\test-figma-evidence-contract.ps1'
 Assert-Condition (Test-Path $figmaEvidenceValidator) 'focused Figma evidence contract validator is missing'
@@ -564,6 +582,55 @@ $decisionGateContractValidator = Join-Path $root 'scripts\test-decision-gate-con
 Assert-Condition (Test-Path $decisionGateContractValidator) 'focused decision-gate contract validator is missing'
 & powershell -NoProfile -ExecutionPolicy Bypass -File $decisionGateContractValidator
 Assert-Condition ($LASTEXITCODE -eq 0) 'focused decision-gate contract validator failed'
+
+$documentStyleContractValidator = Join-Path $root 'scripts\test-document-style-contract.ps1'
+Assert-Condition (Test-Path $documentStyleContractValidator) 'focused document-style contract validator is missing'
+$documentStyleContractValidatorBytes = [System.IO.File]::ReadAllBytes($documentStyleContractValidator)
+Assert-Condition (
+    $documentStyleContractValidatorBytes.Length -ge 3 -and
+    $documentStyleContractValidatorBytes[0] -eq 0xEF -and
+    $documentStyleContractValidatorBytes[1] -eq 0xBB -and
+    $documentStyleContractValidatorBytes[2] -eq 0xBF
+) 'focused document-style contract validator must use UTF-8 BOM'
+& powershell -NoProfile -ExecutionPolicy Bypass -File $documentStyleContractValidator
+Assert-Condition ($LASTEXITCODE -eq 0) 'focused document-style contract validator failed'
+
+$designReviewContractValidator = Join-Path $root 'scripts\test-design-review-contract.ps1'
+Assert-Condition (Test-Path $designReviewContractValidator) 'focused design-review contract validator is missing'
+$designReviewContractValidatorBytes = [System.IO.File]::ReadAllBytes($designReviewContractValidator)
+Assert-Condition (
+    $designReviewContractValidatorBytes.Length -ge 3 -and
+    $designReviewContractValidatorBytes[0] -eq 0xEF -and
+    $designReviewContractValidatorBytes[1] -eq 0xBB -and
+    $designReviewContractValidatorBytes[2] -eq 0xBF
+) 'focused design-review contract validator must use UTF-8 BOM'
+& powershell -NoProfile -ExecutionPolicy Bypass -File $designReviewContractValidator
+Assert-Condition ($LASTEXITCODE -eq 0) 'focused design-review contract validator failed'
+
+$prdBusinessContractValidator = Join-Path $root 'scripts\test-prd-business-contract.ps1'
+Assert-Condition (Test-Path $prdBusinessContractValidator) 'focused PRD business contract validator is missing'
+& powershell -NoProfile -ExecutionPolicy Bypass -File $prdBusinessContractValidator
+Assert-Condition ($LASTEXITCODE -eq 0) 'focused PRD business contract validator failed'
+
+$prdProductFirstValidator = Join-Path $root 'scripts\test-prd-product-first-contract.ps1'
+Assert-Condition (Test-Path $prdProductFirstValidator) 'focused PRD product-first contract validator is missing'
+& powershell -NoProfile -ExecutionPolicy Bypass -File $prdProductFirstValidator
+Assert-Condition ($LASTEXITCODE -eq 0) 'focused PRD product-first contract validator failed'
+
+$prototypeContractValidator = Join-Path $root 'scripts\test-prototype-contract.ps1'
+Assert-Condition (Test-Path $prototypeContractValidator) 'prototype contract validator is missing'
+& powershell -NoProfile -ExecutionPolicy Bypass -File $prototypeContractValidator
+Assert-Condition ($LASTEXITCODE -eq 0) 'prototype contract validator failed'
+
+$prototypeArtifactValidator = Join-Path $root 'scripts\test-prototype-artifacts.ps1'
+Assert-Condition (Test-Path $prototypeArtifactValidator) 'prototype artifact tests are missing'
+& powershell -NoProfile -ExecutionPolicy Bypass -File $prototypeArtifactValidator
+Assert-Condition ($LASTEXITCODE -eq 0) 'prototype artifact tests failed'
+
+$prototypeIgnoreValidator = Join-Path $root 'scripts\test-prototype-ignore.ps1'
+Assert-Condition (Test-Path $prototypeIgnoreValidator) 'prototype Git ignore tests are missing'
+& powershell -NoProfile -ExecutionPolicy Bypass -File $prototypeIgnoreValidator
+Assert-Condition ($LASTEXITCODE -eq 0) 'prototype Git ignore tests failed'
 
 $prdSkillPath = Join-Path $root 'skills\fp-prd\SKILL.md'
 $prdSkillText = Read-Utf8 $prdSkillPath
@@ -924,11 +991,12 @@ foreach ($example in [regex]::Matches($taskLayoutTemplate, '(?s)```markdown\r?\n
 
 $skillAnchors = @{
     'fp-init' = @('templates.md', 'project-family-examples.md', 'Lightweight discovery boundaries', 'Never overwrite', 'auto-install', 'show-install-steps', 'skip-codegraph', 'npm install -g @colbymchenry/codegraph@latest', 'codegraph install --target=auto --location=global --yes', 'codegraph init <project-root>', 'refresh-existing-information-layer', 'stale-generated-intel', 'refresh-stale-intel', 'preserve-manual-settings', 'user-edit-conflict')
+    'fp-prototype-init' = @('prototype-contract.md', 'no-full-init', 'no-manifest-required', 'manifest-section-only', 'fresh-reuse', 'approved-prototype-provisioning', 'CheckFreshness')
     'fp-prd' = @('Bucket A/B', 'Bucket C', 'Prototype-first', 'explicitly approved', 'prd-template.md')
     'fp-prd-grill-me' = @('one question per turn', 'MUST NOT decide Bucket C', 'Minimal Fact Exploration')
     'fp-propose' = @('proposal-template.md', 'Why / What Changes / Out of Scope / Impact', 'fp-docs/changes/<slug>/proposal.md')
     'fp-brainstorm' = @('2-3', 'design-template.md', 'Visual Checks', 'design/00-index.md', 'design/backend.md', 'design/frontend.md')
-    'fp-design-review' = @('review-template.md', 'review.md', '评审关注点', '决策统计', '不得复制决策正文', 'design/00-index.md', 'manifest order', 'canonical-first', '阻塞')
+    'fp-design-review' = @('review-template.md', 'review.md', '设计充分性检查', '评审结论', '业务和技术主线', '主要风险', '不得复制台账行或机械复制叙述性设计正文', 'design/00-index.md', 'manifest order', 'canonical-first', '阻塞')
     'fp-plan' = @('fp-plan-backend', 'fp-plan-frontend', 'plan-backend.md', 'plan-frontend.md')
     'fp-plan-backend' = @('Global Constraints', 'Backend Interface Ledger', 'Coverage Matrix', 'plan-template.md')
     'fp-plan-frontend' = @('Global Constraints', 'Interfaces', 'Visual Checks', 'plan-template.md')

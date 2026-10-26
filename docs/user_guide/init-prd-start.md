@@ -8,7 +8,7 @@
 
 `/fp-explore <问题>` 用于只读调查当前代码、测试、接口、行为、约束、风险和可选方案。空输入只做有界项目概览，然后询问你想深入的方向。它不会创建 PRD/proposal/design/tasks，不会修改代码，也不会自动切换到其他流程。
 
-`fp-prd`、`fp-start` 和 `fp-quick` 会在内部复用相同探索能力：PRD 只消费代码事实且仍由 `fp-prd-grill-me` 确认产品决策；start 仍由用户选择 quick/full；quick 仍须先确认内联计划才能实现。
+`fp-prd`、`fp-start` 和 `fp-quick` 会在内部复用相同探索能力：PRD 只消费代码事实（用户可见现状、实现证据、待定产品决策分开返回）且仍由 `fp-prd-grill-me` 确认产品决策；start 仍由用户选择 quick/full；quick 仍须先确认内联计划才能实现。
 
 ## 1. `/fp-init`：初始化项目信息层
 
@@ -22,7 +22,7 @@
 
 ### 它会创建什么
 
-`/fp-init` 只负责目标项目的信息层。v2 的 `manifest-only default` 默认只在项目根目录创建：
+`/fp-init` 默认建立目标项目的信息层，也可按单独批准建立前端原型基座。v2 的 `manifest-only default` 默认只在项目根目录创建：
 
 ```text
 fp-docs/
@@ -45,7 +45,8 @@ fp-docs/
 | `fp-docs/settings/agent.md` | 通用工作流与项目政策 adapter | 工作流/权限/验证策略相关时 |
 | `fp-docs/settings/frontend.md` | 前端、UI、设计系统、视觉验收规则 | UI/页面/组件/前端实现相关时 |
 | `fp-docs/settings/backend.md` | 后端、API、数据、安全、权限规则 | 后端/API/数据/安全相关时 |
-| `fp-docs/settings/prototype-style.md` | HTML 原型视觉风格参考 | 生成或更新 `prototype.html` 时 |
+| `fp-docs/settings/prototype-style.md` | 原型视觉与交互约束 | 生成或更新任一原型模式时 |
+| `fp-docs/prototype-bases/<app-id>/manifest.json` | 同技术栈基座的源码、Mock、构建、静态预览及来源索引 | 仅该 app 的原型工作；实时验证来源 |
 | `fp-docs/intel/project-facts.md` | 可选生成事实缓存，只含质量门禁与非显而易见的契约/架构/安全边界 | 仅相关时读取并回到当前源码复核 |
 | `fp-docs/intel/.freshness.json` | metadata-only：source fingerprint、body hash、生成时间/版本 | `/fp-init` 实时计算 stale/conflict 时 |
 | `fp-docs/intel/unknowns.md` / `decisions.md` | 可选 human-owned 项目知识 | 仅有实际内容、已批准且当前问题相关时 |
@@ -96,14 +97,52 @@ codegraph sync <project-root> --quiet
 
 ### 可选设置文件
 
-`/fp-init` 会一次列出可选 settings（agent/frontend/backend/prototype-style），逐文件确认后只为被批准的文件创建对应目录/文件。批准 discovery 后也只创建 `project-facts.md` 和 `.freshness.json`，不保存 CodeGraph 拓扑。项目级 unknowns/decisions 仅在确有内容并单独批准写入范围后懒创建；它们缺失不是阻塞。
+`/fp-init` 会一次列出适用的可选 settings，逐文件确认后只创建被批准的文件；已确认无前端时省略 frontend/prototype-style。批准 discovery 后仍只创建 `project-facts.md` 和 `.freshness.json`，不保存 CodeGraph 拓扑，也不授权原型构建。项目级 unknowns/decisions 仍按需批准，缺失不是阻塞。
 
 建议原则：
 
 - 不确定就写 `Unknown`，不要猜测。
 - 现有文件不覆盖，除非用户明确批准。
 - 项目已有 `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` / `CURSOR.md` 时，只在 manifest 中记录引用，不复制大段内容到 `settings/agent.md`。
-- 公共 FeaturePilot 插件不内置客户组件库、后端框架、API envelope 或设计 token；客户规则应落在目标项目自己的 `fp-docs/settings/*.md`。
+- 公共 FeaturePilot 默认不强制客户技术栈、组件库、API envelope 或设计 token；客户规则保留在目标项目文档/settings 中。已验证 Django / Vue 时可直接复用通用内置规范，不引入特定客户依赖。
+
+### Django / Vue 内置代码规范
+
+`/fp-init` 根据当前应用的直接依赖及真实入口确认技术栈，按端自动选择规范：Django 后端选后端规范，Vue 前端选前端规范，双端选两份。不要求客户属于 CW 项目，也不需要再选择一套规范；非匹配端继续通用设置，证据不足记为 `Unknown`。
+
+生成获批的 `settings/backend.md` / `settings/frontend.md` 时，`Code Standards` 登记内置 preset、插件相对资源、appRoot/版本证据、客户规范来源和明确覆盖。正文只维护在插件内，不复制进客户规则目录、不写本机安装路径。设计、规划、实现和 review 按需读取公共规范及当前端规范；独立执行/审查代理也须读取实际资源。
+
+规范包含公共 Q01–Q05、Django B01–B09、Vue F01–F07，覆盖分层、输入/响应契约、ORM/事务/并发、权限审计、组件/状态/异步、样式、安全与验证。Vue 2.6/2.7/3、Pydantic v1/v2 按客户实际依赖适用，不强迫升级、安装库或采用私有基类/组件。
+
+选中规范不等于写入批准：保持 `manifest-only default`；跳过 settings 就不登记。已有 settings、`.claude/rules` 等人工规范保留，修改须先看精确 diff 并明确批准。客户明确规范优先于内置默认，未决冲突如实说明；规范符合性与功能缺陷分别报告。
+
+### 单独初始化或刷新原型基座
+
+**项目已经 init 过，只想补建或刷新原型时，直接运行：**
+
+```text
+/fp-prototype-init
+```
+
+多前端项目可以指定已知 app-id 或项目内 app-root，例如：
+
+```text
+/fp-prototype-init apps/admin
+```
+
+该技能只处理原型基座，不重跑信息层、CodeGraph 安装/MCP、settings 或 discovery。主 manifest 不存在也可以运行，不会顺带创建它；已有主 manifest 只在精确 diff 获批后更新 Prototype Bases 小节，其余内容不变。
+
+有前端时，默认建立 **`static-modular`** 静态基座：多文件静态资产（`css/tokens.css`、`css/layout.css`、`css/components.css` + classic script 的 JS），`delivery: no-build`，不装依赖、不跑构建器，入口可以直接双击用浏览器打开。设计 token 和组件视觉语义来自真实来源（既有 scss/token、`settings/prototype-style.md`、Figma 或截图），`componentMap` 逐行记录生产组件到静态类的映射。需要真实组件运行时、真实组件库行为或后续开发复用时，才显式选择 `project-native`。
+
+- 无前端：跳过，不创建基座/空原型，不安装前端依赖；SSR/服务端模板不能简单判定为无前端。
+- 多应用：先选择 app；每个 app 独立记录位置、模式和预览 cwd。
+- 单独批准：先展示参考页面、模式选择及理由、文件、预览命令/cwd、依赖/配置/截图影响；可以初始化、仅报告或跳过。信息层仍可保持 manifest-only。
+- 产物：`fp-docs/prototype-bases/<app-id>/manifest.json` 与静态资产；`static-modular` 无构建步骤。
+- 原型仅保留本地、不提交 Git：原型操作前会按批准维护 `fp-docs/.gitignore`，排除整个基座、需求原型及归档原型（包括旧 prototype.html）。保留已有忽略规则，`.gitignore` 本身及 PRD/settings/真实 E2E 证据仍可提交。已跟踪原型需另经批准取消跟踪，保留本地文件；fresh 基座也要补齐该保护。
+- 验证：`static-modular` 做结构自检、`file://` 直接打开、网络拦截与视觉对照；`project-native` 做独立构建、localhost 预览与网络隔离。未完成检查就如实报告，不以结构校验代替保真证明。
+- 刷新：单独运行 `/fp-prototype-init`，针对选定基座检查相关源文件指纹和人工修改，批准后更新；fresh 基座默认复用，不重复构建，也不会覆盖已评审需求原型。
+
+后续 `/fp-prd` 在本需求目录复制必要的基座静态资产快照，记录基座版本，再增量新增本需求的页面脚本、Mock 与入口（`static-modular` 保持守卫脚本在 `scriptOrder` 首位）。项目组件继续只读引用；共享基座和正式生产代码不随 PRD 被修改。缺失/过期基座需要先处理，不能自动降级模式。
 
 ### CW / 嘉为项目示例
 
@@ -169,10 +208,11 @@ Use fp-prd only when the user explicitly invokes /fp-prd or $fp-prd, or explicit
 ```text
 fp-docs/changes/<slug>/prd.md                    # 小型形式
 fp-docs/changes/<slug>/prd/00-index.md           # 拆分形式的唯一入口
-fp-docs/changes/<slug>/prototype.html   # 仅在确认需要原型时生成
+fp-docs/changes/<slug>/prototype/manifest.json   # project-native：源码、Mock、preview/index.html 与资产
+fp-docs/changes/<slug>/prototype.html            # 旧或明确选择的 standalone-html
 ```
 
-上面两个 PRD 路径是二选一，不允许并存；拆分形式还包含 `00-index.md` manifest 列出的编号分片。
+上面两个 PRD 路径是二选一，不允许并存；拆分形式还包含 `00-index.md` manifest 列出的编号分片。原型独立选择一种模式，`prototype.html` 与 `prototype/` 不得并存；原型目录不是 PRD 分片。
 
 禁止把 PRD 写到 `fp-docs/prd-*.md` 或 `fp-docs/*.prd.md`。
 
@@ -181,10 +221,10 @@ fp-docs/changes/<slug>/prototype.html   # 仅在确认需要原型时生成
 `/fp-prd` 是访谈工作流，不是一句话生成器。写文件前必须完成确认：
 
 1. 加载 `fp-prd-grill-me`。
-2. 批量展示 Bucket A/B 已确定项，给用户一次性审阅和纠错。
-3. Bucket C 待确认项必须一问一答逐个提问；助手不能自问自答。
+2. 批量展示「建议采用的默认项（待批量确认）」Bucket A/B 项，给用户一次性审阅和纠错；Bucket A/B 只覆盖零影响措辞和低风险展示默认，高影响事项不进入批量确认。
+3. Bucket C 待确认项必须一问一答逐个提问；助手不能自问自答，也不能把助手推荐说成用户决定。
 4. 输出确认摘要：已确认决策、假设、非阻塞问题、是否生成原型、目标路径。
-5. 等用户明确批准后，才创建目录和写入 PRD 的小型或拆分形式，以及获批的 `prototype.html`。
+5. 等用户明确批准后，才创建 PRD/原型路径、修改隔离源码，并执行获批的构建/预览命令；原型摘要包含模式、app、基座版本、Mock 场景及文件/命令影响。
 
 例外只有三类：
 
@@ -192,14 +232,51 @@ fp-docs/changes/<slug>/prototype.html   # 仅在确认需要原型时生成
 - 用户明确说“无需提问，按以下假设生成”。
 - 已有访谈答案和确认摘要获得用户批准。
 
+### 先业务、后页面
+
+`/fp-prd` 不只整理页面改动。访谈按固定顺序推进：
+
+1. 需求意图：用户是谁、痛点、预期业务结果、交付边界。
+2. 部署和使用边界：单实例或多租户、隔离范围、各角色可做什么、数据是否跨范围共享。
+3. 业务对象建模：核心名词里哪些是独立业务对象、哪些只是页面字段、哪些有生命周期、哪些会被引用。
+4. 关系消歧：两个对象之间是归属、绑定、引用、筛选条件、数据来源、使用限制，还是无关系。关系类型确认前不讨论一对一或一对多，也不把 UI 顺序或现有字段当成业务关系。
+5. 生命周期和引用语义：状态、可编辑范围、引用方绑定对象还是具体版本、新版本是否自动生效、旧版本停用后既有引用如何处理、历史结果是否冻结。
+6. 内容模型：目标内容复用、拆分、合并还是新增，默认显隐、数据范围由谁配置、是否随版本冻结。
+7. 主用户旅程和输出范围：深入设计哪个主体验，哪些输出只需一致性要求。
+8. 异常、权限、日志和验收。
+9. 原型选择：直接写 PRD、先做轻量产品线框，或先做可运行交互原型。
+
+其中第 3、4、5 项在页面和原型问题之前完成。当前代码里的枚举、模块和字段不决定目标业务对象、内容模型或 MVP 边界。
+
+- 例如提现改版，不能只写按钮和成功提示；还要明确申请如何流转、谁来处理、失败后业务处于什么状态，以及用户在哪里看到最终结果。
+- “后台无需修改”也要说明现有能力和依据；没有证据时保留未知，不擅自判定要改或不改。
+- 简单筛选、文案或纯展示调整可简述流程/状态不变及理由；新业务明确没有现状流程，不虚构后台或状态机。
+- Bucket A 只包含用户已经表达的决定、本次验证过的现状，以及不改变范围或风险的措辞整理；Bucket B 只包含可轻易撤销、错误代价低、不影响数据边界/权限/生命周期/验收的展示默认。部署边界、对象关系、生命周期、版本语义、主交付体验范围和新增内容模块一律进入 Bucket C。
+- Bucket C 通常以 3–5 个问题为目标，但高影响问题不因数量降级；超过时继续逐个确认或由用户明确缩小范围，已确认清楚的也不凑问题。
+- 原型确认只覆盖已经展示的行为，未讨论的业务规则、后台影响和异常处置仍须在 PRD 写入前确认。
+
+这些内容放在既有六章中，不增加顶级章节或额外业务分析文件。完成前会检查：拿掉页面描述是否仍能说明业务如何运行，测试是否验证业务结果而不只是点击反馈，以及不懂代码的产品经理能否只看 PRD 说清业务。
+
+### PRD 的读者和语言
+
+PRD 的默认读者是产品经理、业务方、设计师和研发评审者。正文只回答 Who / Why / What / Rule / Outcome，不描述 How。
+
+除非你明确要求技术型 PRD，正文不会出现源码路径、文件名、行号、类名、函数名、模型名、接口名、字段设计、数据库/队列/事务实现、构建命令、端口、SHA、Git 状态或验证计数。代码探索结果会先转成用户可感知的当前行为再写进 PRD；实现细节留给 proposal、design 和 tasks。
+
+原型小节只记录四项：原型入口、演示范围、从原型确认的产品结论、原型未覆盖的业务范围。原型模式、源码与 Mock、基座与哈希、构建/预览命令和端口、验证记录都保存在 `prototype/manifest.json` 和原型 evidence 中。
+
+完成汇报默认只给产品读者关心的内容：PRD 入口、核心范围、原型入口（若有）、仍未解决的问题和下一步命令；构建日志、哈希、端口和 Git 状态只在你要时才展开。
+
 ### PRD-first 与 Prototype-first
 
-| 模式 | 适用场景 | 产物顺序 |
+| 模式 | 触发条件 | 产物顺序 |
 |---|---|---|
-| PRD-first（默认） | 普通需求、后端/API/流程需求、已有明确业务目标 | 先确认 PRD 决策 → 写入 PRD 的 canonical 小型或拆分形式 → 如需要再写 `prototype.html` |
-| Prototype-first | 用户说“先看原型/先出页面/先做交互稿”，或需求 UI-heavy | 先确认 prototype-blocking 决策 → 写 `prototype.html` → 用户确认原型 → 补齐 PRD 决策 → 写入 PRD 的 canonical 小型或拆分形式 |
+| PRD-first（默认） | 普通需求；包括页面较多的需求 | 确认 PRD 决策后写 PRD；原型按第 9 项的选择决定 |
+| Prototype-first | 只有你明确要求先看原型、先看页面或先做交互稿 | 确认原型决策，生成并评审原型，再补齐业务决策、确认并写 PRD |
 
-生成原型时，如果存在 `fp-docs/settings/prototype-style.md`，必须先读取并应用；没有则使用中性默认样式，并建议在首个原型确认后提取项目原型风格。
+页面或交互较多的需求只会**推荐**原型，不会自动进入完整原型工程。未获得你的选择前，不会创建原型源码、安装依赖或运行构建/预览。原型也分用途：产品评审原型只确认信息结构、页面流程、可见状态和文案，不要求独立构建工程、网络隔离证明或 manifest 哈希；技术可运行原型才提供高保真交互、真实组件映射、Mock 网络隔离和构建/视觉验证。
+
+顺序模式不决定渲染技术。已有前端默认 `static-modular`（无构建、`file://` 可双击打开、组件映射可核对）；需要真实组件运行时时选 `project-native`（真实组件 + 构建 + 独立预览）；明确的单文件轻量场景用 `standalone-html`。原型设置存在时按需读取，但缺少 prototype-style 不代表可以用中性样式替换已有真实组件。模式是用户选择，构建器缺失或构建失败都不构成自动切换模式的理由。
 
 ### PRD 模板要求
 
@@ -350,13 +427,15 @@ Consumer 先检测 canonical small file 与 split directory 的 `00-index.md`，
 
 FeaturePilot 会提示建议 `/fp-init`，但不会强制停止。后续如需要长期复用项目规范，再补跑 `/fp-init`。
 
-### UI-heavy 需求
+### 想先看原型
 
 ```text
 /fp-prd 先给我出一个 <页面/交互> 原型
 # 原型确认后
 /fp-start <slug>
 ```
+
+也可以先正常写 PRD，在访谈第 9 项的原型选择里选「先做轻量产品线框」或「先做可运行交互原型」。页面较多本身不会触发原型工程。
 
 ### 覆盖率专项
 
