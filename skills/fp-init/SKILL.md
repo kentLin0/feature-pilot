@@ -1,13 +1,13 @@
 ---
 name: fp-init
-description: Use when a project is adopting FeaturePilot for the first time, needs a single-manifest fp-docs information layer, wants optional CodeGraph setup, guided creation of fp-docs settings, or may adopt labelled project-family examples such as Canway/CW settings.
+description: Use when a project is adopting FeaturePilot or needs its fp-docs information layer, optional CodeGraph setup, or project settings initialized or refreshed.
 ---
 
 ## FeaturePilot workspace and information layer
 
 插件资源锚定、`${CLAUDE_PLUGIN_ROOT}` 路径映射与缺失即停止规则见 `${CLAUDE_PLUGIN_ROOT}/skills/_shared/workspace-rules.md`；不要在消费者项目中搜索 `skills/**`。
 
-Read `${CLAUDE_PLUGIN_ROOT}/skills/_shared/workspace-rules.md` once before acting. For this skill, apply its `fp-init` ownership exception: only init may create or repair project-level `fp-docs/manifest.md`, settings, and intel, and existing files require explicit overwrite approval.
+Read `${CLAUDE_PLUGIN_ROOT}/skills/_shared/workspace-rules.md` once before acting. Init owns creation/full maintenance of the project information layer; existing files require explicit approval. Prototype base work and the narrow existing-manifest Prototype Bases update are delegated to fp-prototype-init.
 
 # FeaturePilot Init
 
@@ -17,11 +17,12 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/_shared/workspace-rules.md` once before actin
 
 - `new-project-manifest-only`：新项目信息层默认只有 `fp-docs/manifest.md`，不预建 `settings/`、`intel/` 或任何骨架文件。
 - Explain the workflow: `/fp-prd` clarifies requirements; `/fp-start` picks up a PRD or feature description and drives design → plan → execution.
-- Optionally generate lean `fp-docs/settings/agent.md` (general FeaturePilot policy adapter), `fp-docs/settings/frontend.md` (frontend/UI/visual), `fp-docs/settings/backend.md` (backend/API/data/security), and/or `fp-docs/settings/prototype-style.md` (prototype visual style reference) with user confirmation.
+- Optionally generate lean `fp-docs/settings/agent.md` (general FeaturePilot policy adapter), `fp-docs/settings/frontend.md` (frontend/UI/visual), `fp-docs/settings/backend.md` (backend/API/data/security), `fp-docs/settings/code-standards.md` (registered project-only code rules), and/or `fp-docs/settings/prototype-style.md` (prototype visual style reference) with per-file user confirmation.
 - `codegraph-current-state-single-decision`：根据当前 CLI 状态，用一次选择覆盖获选路径中的 npm 安装、Agent MCP 配置与首次建图，并逐步汇报。
 - `approved-discovery-project-facts-only`：批准 discovery 后，生成的 Markdown 事实缓存最多只有 `fp-docs/intel/project-facts.md`，并配套 metadata-only 的 `fp-docs/intel/.freshness.json`。
 - `unknowns-and-decisions-human-owned-lazy`：只有本流程获得明确写入范围批准且确有项目级内容时，才创建 `intel/unknowns.md` 或 `intel/decisions.md`。
 - Never overwrite existing customer manifest/settings/intel without explicit approval.
+- 有 Web 前端时可委托 `fp-prototype-init` 按独立批准创建可独立运行、业务数据全 Mock 的 `fp-docs/prototype-bases/<app-id>/`：默认 `static-modular` 静态基座（无构建、可 `file://` 打开），需要真实组件运行时时选 `project-native`；无前端跳过。基座不是生产实现，不改变 manifest-only default。
 
 ## OpenSpec-inspired init principles
 
@@ -42,6 +43,7 @@ fp-docs/
     agent.md                 # Optional lean FeaturePilot policy adapter
     frontend.md              # Optional UI/frontend/visual/design-system settings
     backend.md               # Optional backend/API/data/security settings
+    code-standards.md        # Optional approved project-only code rules
     prototype-style.md       # Optional prototype visual style reference
   intel/                     # Optional; absent in the default workspace
     project-facts.md         # Optional generated facts cache
@@ -176,6 +178,18 @@ If **any** of these exist:
 
 首次 manifest 创建或已有 manifest 的已批准写入都不得复制外部文档正文；只记录相对路径、优先级和最小备注。
 
+### 5a. Detect frontend capability
+
+读取 `${CLAUDE_PLUGIN_ROOT}/skills/_shared/prototype-contract.md` 的 Capability and rendering mode，复用已知事实，有界核对实际浏览器/模板入口及构建配置。保留目标 appRoot、框架/版本、组件/样式入口和检测依据；多应用分别识别，SSR/模板及 unknown 不误判为无前端。已有前端默认推荐 `static-modular` 基座（无构建、入口可 `file://` 打开）；需要真实组件运行时或后续开发复用时才选 `project-native`。模式由用户选择决定，不因构建器缺失自动切换。
+
+**no-frontend**：确认不存在 Web UI 时，后续 settings/项目族建议省略 frontend.md 与 prototype-style.md，不初始化基座、不创建空原型、不安装前端依赖。已有人工文件不删除；用户明确提出新增前端时才重新确认绿地需求。检测不确定先澄清，不替用户选框架。
+
+### 5b. Select built-in stack standards
+
+复用 Section 5/5a 已读事实，有界核对后端候选应用的直接依赖与启动入口；任一端出现可信 Django / Vue 候选时，读取 `${CLAUDE_PLUGIN_ROOT}/skills/fp-init/stack-standards.md`。按其证据门槛分端确认并自动选用通用代码质量规范，不把 README、目录名或项目族示例当实际框架证明。无相关信号时跳过该资源，继续通用 init；不为选规范运行 discovery、安装依赖或改客户文件。
+
+保持每个 appRoot 的版本、证据、客户已有规范与选用结果在当前上下文，供 Section 6/7 已获批准的新 settings 创建使用。选用不等于登记，`settings-created-only-after-explicit-approval` 不变；已有 settings/规范只读保留，更新须展示精确 diff 并另获批准。
+
 ### 6. Detect labelled project-family examples
 
 After checking project docs, run only a small read-only project-family signal check. If no plausible signal exists, continue generic init without loading extra context. If a signal exists, read `${CLAUDE_PLUGIN_ROOT}/skills/fp-init/project-family-examples.md` and follow its confidence, consent, selective-copy, and overwrite rules.
@@ -184,7 +198,7 @@ After checking project docs, run only a small read-only project-family signal ch
 
 `after-resolving-manifest-disposition`：完成 manifest disposition（首次创建、已批准更新或未修改）并处理已接受的 project-family example 后，再提供可选 settings；不得把进入本阶段表述为已有 manifest 必然已更新。
 
-用**一次多选询问**列出全部可选 settings。`settings-created-only-after-explicit-approval` 仍逐文件生效：只有用户明确选择生成的文件才创建对应目录/文件。
+用**一次多选询问**列出适用的可选 settings；按 Section 5a 的 no-frontend 结论省略前端/原型项。`settings-created-only-after-explicit-approval` 仍逐文件生效：只有用户明确选择生成的文件才创建对应目录/文件。下列是选项模板，不是要求向所有项目展示全部选项。
 
 ```markdown
 是否需要生成以下可选的 `fp-docs/settings/` 文件？请列出要生成的文件（其余跳过，每个文件独立选择）。
@@ -195,17 +209,34 @@ After checking project docs, run only a small read-only project-family signal ch
    → 生成（根据项目现有前端代码和依赖推断模板供你确认）/ 跳过
 3. `settings/backend.md` — 后端框架与源代码位置、API/服务/数据模式、请求/响应/错误格式约定、认证/权限/隔离规则、后台任务与运维约定、后端特有 Unknowns。
    → 生成（根据项目现有后端代码和依赖推断模板供你确认）/ 跳过
-4. `settings/prototype-style.md`（HTML 原型视觉风格参考）— 原型适用场景、页面骨架与布局模式、颜色/字体/间距 token、常用组件/表格/表单/弹窗/抽屉风格、原型交互与文案规则。
+4. `settings/prototype-style.md`（原型视觉与交互约束）— 原型适用场景、页面骨架与布局模式、颜色/字体/间距 token、常用组件/表格/表单/弹窗/抽屉风格、原型交互与文案规则。
    → 生成（根据已有原型、截图、Figma 或相邻页面提炼初始草稿；不确定项写 Unknown）/ 跳过
+5. `settings/code-standards.md`（项目专属代码规范）— 仅保存已证实且标注 appRoot 的项目规则；需同时批准对应 backend/frontend settings 的 `Project rule sources` 登记，已有 settings 要先确认精确 diff。
+   → 生成并登记 / 跳过
 ```
 ```
+
+Section 5b 已确认 Django / Vue 时，在对应选项中说明将直接引用匹配的内置规范及 appRoot，无需再次选择规范。批准生成后，按 `stack-standards.md` 填入 `Code Standards` 的 preset、插件相对资源、版本证据、客户规范和明确覆盖；正文只在插件维护，不复制到 settings 或 `.claude/rules`。未命中的端使用 `none`，证据不足用 `Unknown`。已有文件与项目族示例的处理仍按各自批准边界执行。
+
+项目专属规则文件单独选择。仅在新建或已批准更新的适用端 settings 中把该文件登记为 `Project rule sources` 后创建；若登记未获批准则保持未创建。已有文档不由 init 覆盖，新规则的后续维护按 workspace 契约交由 `fp-commit`，不将单项目规则加入插件通用 preset。
 
 每个被确认生成的文件都从 `${CLAUDE_PLUGIN_ROOT}/skills/fp-init/templates.md` 读取对应模板写入：
 
 - `settings/agent.md` → `FeaturePilot Agent Settings` 模板。
 - `settings/frontend.md` → 先读取轻量项目前端事实，再写 `FeaturePilot Frontend Settings` 模板。
 - `settings/backend.md` → `FeaturePilot Backend Settings` 模板。
+- `settings/code-standards.md` → `FeaturePilot Project Code Standards` 模板，仅用于已获批准登记的适用端。
 - `settings/prototype-style.md` → `FeaturePilot Prototype Style` 模板。
+
+### 7a. Optional project-native prototype base
+
+仅对 Section 5a 已确认的 Web 前端进入此阶段；no-frontend 直接跳过。**prototype-provisioning is not discovery**：settings、discovery 或 CodeGraph 批准不自动覆盖基座操作。
+
+通过当前运行时原生 Skill 机制加载 **`fp:fp-prototype-init`**（无 Skill tool 时，从已安装技能元数据入口读取完整技能）。它独占 **approved-prototype-provisioning**、基座创建/刷新和按批准登记已有 manifest 的 Prototype Bases 小节；不能解析安装资源时停止此阶段并报告，不去消费者仓库查找替代文件。
+
+传入 caller=`fp-init`、选定 app（如有）、已验证前端事实与来源、主 manifest disposition、既有设置和精确已批准范围。尚未批准的动作保持未批准；新技能不重复问已确认事实，不重新运行完整 init。
+
+等待 return 后只报告该技能的实际路径、写入与验证结果，继续尚未完成的信息层步骤；不再创建/覆盖基座或重复登记索引。仅想补建/刷新基座的已有项目直接使用 `/fp-prototype-init`，无需重跑本技能。
 
 ### 8. Ask about lightweight discovery
 
@@ -234,7 +265,7 @@ If approved, perform a read-only discovery pass and write only the two approved 
 - Record sources, confidence, git blob SHAs / content hashes where available, and Unknowns.
 
 **Forbidden:**
-- Installing packages, except the npm global CodeGraph install explicitly approved in Section 2.
+- Installing packages within discovery. The explicit CodeGraph gate in Section 2 and approved native prototype provisioning in Section 7a are separate workflows, not discovery permissions.
 - Running test/build/lint commands unless explicitly approved.
 - Exhaustive repository indexing, except the project-local CodeGraph build explicitly approved in Section 2.
 - Reading secrets or env values.
@@ -257,7 +288,9 @@ After init, report:
 - Whether `settings/agent.md` was created/skipped/adopted.
 - Whether `settings/frontend.md` was created/skipped/adopted.
 - Whether `settings/backend.md` was created/skipped/adopted.
+- 内置代码规范按端/appRoot 的匹配、实际登记/保留/跳过/unknown、重要版本适配及未决项；仅检测到框架不宣称已登记或已验证。
 - Whether `settings/prototype-style.md` was created/skipped/adopted.
+- Frontend applicability (including no-frontend/unknown), selected app and prototype provisioning created/refreshed/reported/skipped/blocked; native source/manifest/preview paths, actual build/preview command and cwd, checks, gaps and whether the manifest base pointer was explicitly updated.
 - Whether optional `project-facts.md`/`.freshness.json` were created，或保持 manifest-only；是否经单独批准创建 human-owned unknowns/decisions。
 - `external-doc-manifest-disposition`：列出检测到的 external docs，并明确记录三态之一：`first-time-recorded`（随首次 manifest 创建写入）、`approved-update`（已有 manifest 的精确 diff 获批并写入）或 `not-modified`（仅报告/跳过/未批准，manifest 未修改）。没有检测到文档时报告 `N/A`，不得声称已记录。
 - Critical unknowns.

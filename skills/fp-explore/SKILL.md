@@ -36,7 +36,7 @@ For empty input, perform only bounded orientation: applicable root instructions,
 
 Allowed pairs are exact: `fp-prd` + `prd-facts`, `fp-start` + `start-routing`, and `fp-quick` + `quick`.
 
-- `prd-facts`: existing user-visible behavior, implementation entrypoints, interface/data facts, adjacent product patterns, and technical constraints. It never answers product scope, goals, acceptance criteria, permissions policy, or prototype decisions.
+- `prd-facts`: existing user-visible behavior as product-language current behavior, implementation entrypoints, interface/data facts, adjacent product patterns, and technical constraints. It never answers product scope, goals, acceptance criteria, permissions policy, or prototype decisions.
 - `start-routing`: current PRD/stage evidence, quick-versus-full evidence, implementation boundaries, and minimum reusable next-phase context. It never selects the route or advances a stage.
 - `quick`: candidate files, reusable code/test patterns, verification paths, blockers, and advisory quick suitability. It never plans, approves, implements, or validates the change.
 
@@ -67,7 +67,14 @@ Invalid internal input must fail closed before investigation: do not infer missi
 
 ## Internal return contract
 
-Every internal invocation returns exactly one block. Use `none` for empty common fields and `n/a` for non-applicable profile fields.
+Every internal invocation produces exactly one caller-owned result using the schema below. This is an internal handoff, not a user-facing response. Use `none` for empty common fields and `n/a` for non-applicable profile fields.
+
+Delivery follows the actual runtime boundary:
+
+- **Same-context skill loading** (`Skill` or reading this file): keep the result in the current context and resume the caller without emitting a chat reply. Loading a skill does not create a private return channel.
+- **Private return channel** (an already-established agent/tool result consumed by the caller): return exactly one block through that channel. The caller consumes the fields and presents its own user-facing response.
+
+Apply these rules to complete, partial, blocked, and invalid results. User-facing output belongs to the caller: concise conclusions, necessary risks or blocking questions, and the caller's next step. Keep invocation/return blocks and raw field dumps out of chat; HTML comments and code fences are not private channels. Do not create a file to hide or transport the result, or spawn an agent just to obtain a private channel. Public standalone exploration keeps its conversational output.
 
 <!-- fp-explore-return
 profile: prd-facts|start-routing|quick|invalid
@@ -83,7 +90,8 @@ external-research: not-needed|not-authorized|proposed|completed
 external-research-gap: <bounded local-evidence gap or none>
 next-caller-action: <recommended caller action>
 profile-fields:
-  prd-existing-behavior: <required for prd-facts, otherwise n/a>
+  prd-product-surface-facts: <required for prd-facts, otherwise n/a>
+  prd-implementation-evidence: <required for prd-facts, otherwise n/a>
   prd-technical-constraints: <required for prd-facts, otherwise n/a>
   prd-product-decisions: <questions for the user, never answers; otherwise n/a>
   start-active-stage: <required for start-routing, otherwise n/a>
@@ -96,6 +104,8 @@ profile-fields:
 -->
 
 A recognized profile keeps its profile-specific fields even when blocked. Invalid invocation uses `status: blocked`, `budget-status: not-started-invalid-invocation`, and `n/a` where a profile field cannot be determined.
+
+`prd-product-surface-facts` is the only prd-facts field safe by default for PRD prose, and only after the caller converts it to product language. `prd-implementation-evidence` stays implementation detail for later design and execution; PRD writers must not copy it into PRD prose.
 
 ## Repository investigation flow
 
@@ -119,7 +129,7 @@ Use the bounded orientation defined under public mode. Do not scan the whole rep
 1. Validate the invocation.
 2. Investigate the profile objective within scope and budget.
 3. Return product ambiguity or missing permission as caller-owned questions.
-4. Emit one deterministic return and stop.
+4. Deliver one deterministic result under the internal return contract and end only the exploration procedure; when running in the same context, resume the caller's next step in the same turn.
 
 A caller may reinvoke with a narrower objective and still-valid verified facts. Do not silently broaden the current call.
 
@@ -286,7 +296,7 @@ Internal profiles default to `not-authorized`. Return `external-research: propos
 
 ### prd-facts
 
-Return `prd-existing-behavior`, `prd-technical-constraints`, and unanswered `prd-product-decisions`. Do not infer preservation from current UI, enums, routes, APIs, or permissions. `fp-prd-grill-me` owns interview classification and confirmation.
+Return `prd-product-surface-facts`, `prd-implementation-evidence`, `prd-technical-constraints`, and unanswered `prd-product-decisions`. Keep the three fact layers separate: `prd-product-surface-facts` describes what a user can currently see, operate, and perceive; `prd-implementation-evidence` records source, interface, model, call-chain, and test evidence; `prd-technical-constraints` records compatibility and cross-end change constraints. Do not infer preservation from current UI, enums, routes, APIs, or permissions, and do not promote an implementation capability into target product scope. `fp-prd-grill-me` owns interview classification and confirmation.
 
 ### start-routing
 

@@ -36,11 +36,11 @@ If it is missing:
 ## 强制执行契约
 
 从启动到结束必须遵守：
-- **显式加载子 skill**：在 Claude Code 中，每进入一个阶段都使用 Skill tool 和对应的完整名称（`fp:fp-propose`、`fp:fp-brainstorm`、`fp:fp-plan`、`fp:fp-execute`、`fp:fp-execute-sdd`、`fp:fp-quick`）加载 skill；不得通过搜索或直接读取消费者项目中的对应 `SKILL.md` 模拟调用。如果 Skill tool 不可用或调用失败，报告 FeaturePilot 插件可用性、权限或安装问题并停在当前门禁。只有明确的非 Claude Code Codex/Markdown fallback 才可用文件读取工具读取 FeaturePilot 分发源码内对应的 `skills/fp-*/SKILL.md`；不要只凭记忆执行。
+- **显式加载子 skill**：在 Claude Code 中，每进入一个阶段都使用 Skill tool 和对应的完整名称（`fp:fp-propose`、`fp:fp-brainstorm`、`fp:fp-plan`、`fp:fp-execute`、`fp:fp-execute-sdd`、`fp:fp-quick`）加载 skill；不得通过搜索或直接读取消费者项目中的对应 `SKILL.md` 模拟调用。如果 Skill tool 不可用或调用失败，报告 FeaturePilot 插件可用性、权限或安装问题并停在当前门禁。只有明确的非 Claude Code 的 Codex/Markdown、Cursor fallback 才可用文件读取工具读取 FeaturePilot 分发源码内对应的 `skills/fp-*/SKILL.md`；不要只凭记忆执行。
 - **阶段门禁**：阶段 1、2、3 完成后必须停下等待用户确认。Proposal/design 阶段还必须核验其 Decision Ledger 与 pre-write confirmation evidence；没有明确确认或台账证据，不得进入下一阶段。
 - **产物核验**：每个阶段完成后必须用工具检查目标文件确实存在，并向用户展示关键路径和摘要。
 - **范围纪律**：不得跳过 proposal/design/plan 直接实现；只有在“小需求分流”中判断适合 `fp-quick` 且用户明确确认后，才允许切换到 `fp-quick`。
-- **失败处理**：在 Claude Code 中，子 skill 不可用或调用失败时停在当前门禁并报告，不进入文件 fallback。索引或目标目录缺失时，先说明实际发现，再按下文对应的 artifact 规则处理。只有第一个契约明确限定的非 Claude Code Codex/Markdown 环境可读取 FeaturePilot 分发源码中的 skill 文件继续；不要假装已调用或已生成。
+- **失败处理**：在 Claude Code 中，子 skill 不可用或调用失败时停在当前门禁并报告，不进入文件 fallback。索引或目标目录缺失时，先说明实际发现，再按下文对应的 artifact 规则处理。只有第一个契约明确限定的非 Claude Code 的 Codex/Markdown、Cursor 环境可读取 FeaturePilot 分发源码中的 skill 文件继续；不要假装已调用或已生成。
 
 ### JIT `fp-eli5` handoff
 
@@ -95,7 +95,7 @@ Dependencies are enablers, not busywork:
 
 ## Shared start-routing exploration
 
-完成非空输入和 init 可用性检查后，在阶段 1 前使用当前运行时原生技能机制加载一次 `fp:fp-explore`，然后向其 `start-routing` profile 提供下方结构化块。加载顺序如下：如果运行时提供可调用的 `Skill` tool，直接调用 `fp:fp-explore`；否则，如果运行时的 `available skills` 元数据列出了 `fp:fp-explore` 及其 `SKILL.md` 入口路径，就从该路径读取已安装的 FeaturePilot 分发目录中的完整技能说明并严格执行。只有两种机制都无法解析或读取 `fp:fp-explore` 时，才报告插件可用性或安装失败，并在阶段 1 前停止。不得搜索消费者项目来寻找回退，也不得直接读取消费者项目中的 `skills/fp-explore/SKILL.md`。`fp-start` 仍负责 canonical artifact 解析、最终 active slug、quick/full 选择以及所有阶段门禁。
+完成非空输入和 init 可用性检查后，在阶段 1 前使用当前运行时原生技能机制加载一次 `fp:fp-explore`，然后向其 `start-routing` profile 提供下方结构化块。加载顺序如下：如果运行时提供可调用的 `Skill` tool，按共享 workspace 契约的名称映射调用 `fp:fp-explore`（Cursor 使用 `fp-explore`）；否则，使用运行时的 `available skills` 元数据提供的对应 `SKILL.md` 入口，或 Cursor 已确认插件根下的 `skills/fp-explore/SKILL.md`，读取已安装的 FeaturePilot 分发目录中的完整技能说明并严格执行。只有两种机制都无法解析或读取 `fp:fp-explore` 时，才报告插件可用性或安装失败，并在阶段 1 前停止。不得搜索消费者项目来寻找回退，也不得直接读取消费者项目中的 `skills/fp-explore/SKILL.md`。`fp-start` 仍负责 canonical artifact 解析、最终 active slug、quick/full 选择以及所有阶段门禁。
 
 <!-- fp-explore-invoke
 profile: start-routing
@@ -156,8 +156,8 @@ For the full flow, pass `start-reusable-context` to `fp-propose` together with t
 
 阶段完成检查属于**写入后产物确认**，与 `fp-brainstorm` 内部的写入前内容确认不同：
 - 用工具确认 `design/00-index.md` 及实际涉及端解析出的 small file 或 split `00-index.md` 存在；split design 还必须按 manifest order 确认每个 listed fragment 存在。
-- 加载 `${CLAUDE_PLUGIN_ROOT}/skills/fp-design-review/SKILL.md` 生成 `fp-docs/changes/<slug>/review.md` 并向用户展示其评审入口摘要（决策统计、评审关注点、建议评审顺序）；生成阻塞或发现 review.md 复制了台账或设计正文时，修复来源设计后重新生成，不得编造。review.md 是评审导航摘要：未复制决策正文，不改变任何台账状态；它是 fp-start 的写入后产物确认步骤，不属于 `fp-brainstorm`。
-- 从每个 actual-end 的 unique detailed owner 解析 Decision Ledger 与 Pre-write Confirmation Evidence。每个 design-required 行必须终态并有来源/确认凭据；`placeholder`、`TBD`、`TODO`、`unknown`、generic `user answer`、bare `ID: user answer` 或 sample authorization 都属于 missing or unresolved。合并所有 owner 后必须仍是 globally unique D-NNN sequence，且每个 owner 的 `Covered IDs` 恰好覆盖其台账行；否则 return to the owning phase `fp-brainstorm` 补齐指定 `D-NNN` 的逐项确认，不得进入计划。
+- 从每个 actual-end 的 unique detailed owner 解析 Decision Ledger 与 Pre-write Confirmation Evidence。每个 design-required 行必须终态并有来源/确认凭据；`placeholder`、`TBD`、`TODO`、`unknown`、generic `user answer`、bare `ID: user answer` 或 sample authorization 都属于 missing or unresolved。合并所有 owner 后必须仍是 globally unique D-NNN sequence，且每个 owner 的 `Covered IDs` 恰好覆盖其台账行，`Outstanding blocking decisions` 为 `none`，并具有 concrete explicit write authorization；否则保留已有 `review.md`，return to the owning phase `fp-brainstorm` 补齐指定 `D-NNN` 的逐项确认，不得调用评审或进入计划。
+- 证据门禁全部通过后，才加载 `${CLAUDE_PLUGIN_ROOT}/skills/fp-design-review/SKILL.md` 生成 `fp-docs/changes/<slug>/review.md`，并展示评审结论、业务和技术主线、主要风险、建议评审顺序与入口路径。设计充分性检查失败时，按其缺失清单返回 `fp-brainstorm` 定点修订并重新确认；`fp-start` 和 `fp-design-review` 都不得编造缺失设计。review.md 不复制决策正文，不改变台账状态，仍属于 fp-start 的写入后产物确认步骤。写后核验以完整评审文档为准；若生成结果机械复制内容或不完整，只允许在充分性通过后重新生成，并确认未复制决策正文。
 - 向用户展示关键架构决策、改动模块、前端组件/布局映射（如涉及）。
 - 明确询问用户是否确认设计。
 

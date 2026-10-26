@@ -1,17 +1,36 @@
+<#
+.SYNOPSIS
+Synchronizes installed FeaturePilot runtimes, or checks their files with VerifyOnly.
+.DESCRIPTION
+Defaults to Claude Code, Codex and DeepSeek Harness. CursorOnly delegates to the
+standalone local installer without accessing the other runtimes. CursorHome is
+valid only with CursorOnly; CursorOnly and ClaudeOnly are mutually exclusive.
+#>
 [CmdletBinding()]
 param(
     [string]$PluginRoot,
     [string]$CodexMarketplace = 'personal',
     [string]$ClaudeMarketplace = 'fp-dev',
-    [switch]$VerifyOnly
+    [switch]$VerifyOnly,
+    [switch]$ClaudeOnly,
+    [switch]$CursorOnly,
+    [string]$CursorHome
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+# Cursor is opt-in so existing three-runtime sync never installs another runtime.
+if ($ClaudeOnly -and $CursorOnly) {
+    throw '-ClaudeOnly and -CursorOnly are mutually exclusive.'
+}
+if ($PSBoundParameters.ContainsKey('CursorHome') -and -not $CursorOnly) {
+    throw '-CursorHome requires -CursorOnly.'
+}
+
 $excludedTopLevelNames = @('.git', '.agents', '.claude', '.worktrees')
 $coreFiles = @('.claude-plugin\plugin.json', '.codex-plugin\plugin.json')
-$coreDirectories = @('commands', 'skills')
+$coreDirectories = @('commands', 'skills', 'scripts')
 
 function Get-FullPath {
     param([Parameter(Mandatory)][string]$Path)
@@ -415,37 +434,49 @@ else {
     Get-FullPath (Join-Path $PSScriptRoot '..\..\..\..')
 }
 
+# Delegate before full validation and Claude/Codex/DSH discovery: Cursor is independent.
+# The standalone installer validates its package and hashes; repository tests run separately.
+if ($CursorOnly) {
+    $cursorArguments = @{ PluginRoot = $repositoryRoot; VerifyOnly = $VerifyOnly }
+    if ($PSBoundParameters.ContainsKey('CursorHome')) { $cursorArguments.CursorHome = $CursorHome }
+    & (Join-Path $repositoryRoot 'scripts\install-cursor-plugin.ps1') @cursorArguments
+    return
+}
+Invoke-ExternalCommand -FilePath 'powershell' -Arguments @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repositoryRoot 'scripts\validate-plugin.ps1')) | Out-Null
 $identity = Get-PluginIdentity $repositoryRoot
 $repoMap = Get-CoreFileMap $repositoryRoot
-$codexMarketplaceFile = Join-Path $HOME '.agents\plugins\marketplace.json'
 $claudeMarketplaceFile = Join-Path $HOME '.claude\plugins\known_marketplaces.json'
 $claudeInstalledFile = Join-Path $HOME '.claude\plugins\installed_plugins.json'
-$codexSelector = "$($identity.Name)@$CodexMarketplace"
-$dshSkillsRoot = Get-DshSkillsRoot
-if ((Test-SamePath $repositoryRoot $dshSkillsRoot) -or (Test-ChildPath $repositoryRoot $dshSkillsRoot) -or (Test-ChildPath $dshSkillsRoot $repositoryRoot)) {
-    throw "Unsafe DSH skills target relationship: repository=$repositoryRoot target=$dshSkillsRoot"
-}
-$dshSkillsExpected = Get-SkillsFileMap -Root (Join-Path $repositoryRoot 'skills')
 
-# Preflight every target identity before any mutation.
-$codexSource = Resolve-CodexSource -MarketplaceFile $codexMarketplaceFile -MarketplaceName $CodexMarketplace -PluginName $identity.Name -RepositoryRoot $repositoryRoot
+# Preflight only the selected targets before any runtime mutation.
 $claudeState = Resolve-ClaudeInstallation -MarketplaceFile $claudeMarketplaceFile -InstalledFile $claudeInstalledFile -MarketplaceName $ClaudeMarketplace -PluginName $identity.Name -RepositoryRoot $repositoryRoot
-Assert-NoProjectSkillLeak $codexSource
 if ((Get-ClaudeStatus $claudeState.Selector) -ne 'enabled') {
     throw "Claude plugin is disabled; refusing to change its enabled state implicitly: $($claudeState.Selector)"
 }
-
-Invoke-ExternalCommand -FilePath 'powershell' -Arguments @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $repositoryRoot 'scripts\validate-plugin.ps1')) | Out-Null
+if (-not $ClaudeOnly) {
+    $codexMarketplaceFile = Join-Path $HOME '.agents\plugins\marketplace.json'
+    $codexSelector = "$($identity.Name)@$CodexMarketplace"
+    $dshSkillsRoot = Get-DshSkillsRoot
+    if ((Test-SamePath $repositoryRoot $dshSkillsRoot) -or (Test-ChildPath $repositoryRoot $dshSkillsRoot) -or (Test-ChildPath $dshSkillsRoot $repositoryRoot)) {
+        throw "Unsafe DSH skills target relationship: repository=$repositoryRoot target=$dshSkillsRoot"
+    }
+    $dshSkillsExpected = Get-SkillsFileMap -Root (Join-Path $repositoryRoot 'skills')
+    $codexSource = Resolve-CodexSource -MarketplaceFile $codexMarketplaceFile -MarketplaceName $CodexMarketplace -PluginName $identity.Name -RepositoryRoot $repositoryRoot
+    Assert-NoProjectSkillLeak $codexSource
+}
 Invoke-ExternalCommand -FilePath 'claude' -Arguments @('plugin', 'validate', $repositoryRoot) | Out-Null
+Write-Output "Selected Claude plugin: $($claudeState.Selector); scope=$($claudeState.Scope); cache=$($claudeState.InstallPath)"
 
 if ($VerifyOnly) {
-    Assert-CoreMatches -Expected $repoMap -ActualRoot $codexSource -Label 'Codex plugin source'
-    $codexCache = Get-CodexCachePath -MarketplaceName $CodexMarketplace -PluginName $identity.Name -Version $identity.CodexVersion
-    Assert-CoreMatches -Expected $repoMap -ActualRoot $codexCache -Label 'Codex cache'
     Assert-CoreMatches -Expected $repoMap -ActualRoot $claudeState.InstallPath -Label 'Claude cache'
-    Assert-SkillsMatch -Expected $dshSkillsExpected -ActualRoot $dshSkillsRoot -Label 'DSH skills root'
-    if ((Get-CodexStatus $codexSelector) -ne 'installed, enabled') {
-        throw "Codex plugin is not enabled: $codexSelector"
+    if (-not $ClaudeOnly) {
+        Assert-CoreMatches -Expected $repoMap -ActualRoot $codexSource -Label 'Codex plugin source'
+        $codexCache = Get-CodexCachePath -MarketplaceName $CodexMarketplace -PluginName $identity.Name -Version $identity.CodexVersion
+        Assert-CoreMatches -Expected $repoMap -ActualRoot $codexCache -Label 'Codex cache'
+        Assert-SkillsMatch -Expected $dshSkillsExpected -ActualRoot $dshSkillsRoot -Label 'DSH skills root'
+        if ((Get-CodexStatus $codexSelector) -ne 'installed, enabled') {
+            throw "Codex plugin is not enabled: $codexSelector"
+        }
     }
 }
 else {
@@ -456,6 +487,7 @@ else {
     $claudeState = Resolve-ClaudeInstallation -MarketplaceFile $claudeMarketplaceFile -InstalledFile $claudeInstalledFile -MarketplaceName $ClaudeMarketplace -PluginName $identity.Name -RepositoryRoot $repositoryRoot
     $claudeDifferences = @(Get-CoreDifferences -Expected $repoMap -Actual (Get-CoreFileMap $claudeState.InstallPath))
     if ($claudeDifferences.Count -gt 0) {
+        Write-Output "Claude same-version cache differs in $($claudeDifferences.Count) files; reinstalling in original scope."
         # claude plugin uninstall / claude plugin install (same-version cache refresh)
         Invoke-ExternalCommand -FilePath 'claude' -Arguments @('plugin', 'uninstall', $claudeState.Selector, '--scope', $claudeState.Scope) | Out-Null
         Invoke-ExternalCommand -FilePath 'claude' -Arguments @('plugin', 'install', $claudeState.Selector, '--scope', $claudeState.Scope) | Out-Null
@@ -463,39 +495,41 @@ else {
     }
     Assert-CoreMatches -Expected $repoMap -ActualRoot $claudeState.InstallPath -Label 'Claude cache'
 
-    Sync-CodexSource -RepositoryRoot $repositoryRoot -CodexSource $codexSource -PluginName $identity.Name
-    Assert-CoreMatches -Expected $repoMap -ActualRoot $codexSource -Label 'Codex plugin source'
-    $codexStatus = Get-CodexStatus $codexSelector
-    if ($codexStatus -eq 'installed, disabled') {
-        throw "Codex plugin is disabled; refusing to change its enabled state implicitly: $codexSelector"
-    }
-    if ($codexStatus -eq 'installed, enabled') {
-        # codex plugin remove
-        Invoke-ExternalCommand -FilePath 'codex' -Arguments @('plugin', 'remove', $codexSelector) | Out-Null
-    }
-    # codex plugin add
-    Invoke-ExternalCommand -FilePath 'codex' -Arguments @('plugin', 'add', $codexSelector) | Out-Null
-    if ((Get-CodexStatus $codexSelector) -ne 'installed, enabled') {
-        throw "Codex plugin did not return to enabled state: $codexSelector"
-    }
-    $codexCache = Get-CodexCachePath -MarketplaceName $CodexMarketplace -PluginName $identity.Name -Version $identity.CodexVersion
-    Assert-CoreMatches -Expected $repoMap -ActualRoot $codexCache -Label 'Codex cache'
+    if (-not $ClaudeOnly) {
+        Sync-CodexSource -RepositoryRoot $repositoryRoot -CodexSource $codexSource -PluginName $identity.Name
+        Assert-CoreMatches -Expected $repoMap -ActualRoot $codexSource -Label 'Codex plugin source'
+        $codexStatus = Get-CodexStatus $codexSelector
+        if ($codexStatus -eq 'installed, disabled') {
+            throw "Codex plugin is disabled; refusing to change its enabled state implicitly: $codexSelector"
+        }
+        if ($codexStatus -eq 'installed, enabled') {
+            # codex plugin remove
+            Invoke-ExternalCommand -FilePath 'codex' -Arguments @('plugin', 'remove', $codexSelector) | Out-Null
+        }
+        # codex plugin add
+        Invoke-ExternalCommand -FilePath 'codex' -Arguments @('plugin', 'add', $codexSelector) | Out-Null
+        if ((Get-CodexStatus $codexSelector) -ne 'installed, enabled') {
+            throw "Codex plugin did not return to enabled state: $codexSelector"
+        }
+        $codexCache = Get-CodexCachePath -MarketplaceName $CodexMarketplace -PluginName $identity.Name -Version $identity.CodexVersion
+        Assert-CoreMatches -Expected $repoMap -ActualRoot $codexCache -Label 'Codex cache'
 
-    # DSH skills root sync: replace only the top-level entries this repository owns under skills/ (fp-* and _shared), never unrelated user skills.
-    if (-not (Test-Path -LiteralPath $dshSkillsRoot -PathType Container)) {
-        New-Item -ItemType Directory -Path $dshSkillsRoot -Force | Out-Null
-    }
-    foreach ($entry in Get-ChildItem -LiteralPath (Join-Path $repositoryRoot 'skills') -Force) {
-        $destination = Join-Path $dshSkillsRoot $entry.Name
-        if (-not (Test-ChildPath $dshSkillsRoot $destination)) {
-            throw "Refusing to write outside DSH skills root: $destination"
+        # DSH skills root sync: replace only repository-owned entries, never unrelated skills.
+        if (-not (Test-Path -LiteralPath $dshSkillsRoot -PathType Container)) {
+            New-Item -ItemType Directory -Path $dshSkillsRoot -Force | Out-Null
         }
-        if (Test-Path -LiteralPath $destination) {
-            Remove-Item -LiteralPath $destination -Recurse -Force
+        foreach ($entry in Get-ChildItem -LiteralPath (Join-Path $repositoryRoot 'skills') -Force) {
+            $destination = Join-Path $dshSkillsRoot $entry.Name
+            if (-not (Test-ChildPath $dshSkillsRoot $destination)) {
+                throw "Refusing to write outside DSH skills root: $destination"
+            }
+            if (Test-Path -LiteralPath $destination) {
+                Remove-Item -LiteralPath $destination -Recurse -Force
+            }
+            Copy-Item -LiteralPath $entry.FullName -Destination $destination -Recurse -Force
         }
-        Copy-Item -LiteralPath $entry.FullName -Destination $destination -Recurse -Force
+        Assert-SkillsMatch -Expected $dshSkillsExpected -ActualRoot $dshSkillsRoot -Label 'DSH skills root'
     }
-    Assert-SkillsMatch -Expected $dshSkillsExpected -ActualRoot $dshSkillsRoot -Label 'DSH skills root'
 }
 
 if ((Get-ClaudeStatus $claudeState.Selector) -ne 'enabled') {
@@ -504,10 +538,16 @@ if ((Get-ClaudeStatus $claudeState.Selector) -ne 'enabled') {
 
 Write-Output "Plugin: $($identity.Name)"
 Write-Output "Claude version: $($identity.ClaudeVersion)"
-Write-Output "Codex version: $($identity.CodexVersion)"
 Write-Output "Claude cache: $($claudeState.InstallPath)"
-Write-Output "Codex source: $codexSource"
-Write-Output "Codex cache: $codexCache"
-Write-Output "DSH skills root: $dshSkillsRoot"
-Write-Output 'Verification: repository, Codex source, Codex cache, Claude cache, and DSH skills root match.'
-Write-Output 'Restart Claude Code and start a new Codex task to load the updated plugin skills. DSH picks up the new skills on its next session without a restart.'
+if ($ClaudeOnly) {
+    Write-Output 'Verification: repository and enabled Claude cache match (manifests, commands, skills, scripts). Codex and DSH were not accessed.'
+    Write-Output 'Restart Claude Code to load the updated plugin skills.'
+}
+else {
+    Write-Output "Codex version: $($identity.CodexVersion)"
+    Write-Output "Codex source: $codexSource"
+    Write-Output "Codex cache: $codexCache"
+    Write-Output "DSH skills root: $dshSkillsRoot"
+    Write-Output 'Verification: repository, Codex source, Codex cache, Claude cache, and DSH skills root match.'
+    Write-Output 'Restart Claude Code and start a new Codex task to load the updated plugin skills. DSH picks up the new skills on its next session without a restart.'
+}

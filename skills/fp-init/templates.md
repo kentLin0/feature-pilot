@@ -28,6 +28,7 @@ For target-state requirements, user instructions and approved active change arti
 | `settings/agent.md` | Lean FeaturePilot policy adapter | workflow, constraints, external-doc pointers | workflow/policy questions only | missing |
 | `settings/frontend.md` | Frontend/UI/visual settings | UI implementation and visual acceptance | UI/page/prototype work only | missing/not-applicable |
 | `settings/backend.md` | Backend/API/data/security settings | backend implementation and backend acceptance | backend/API/data/security/permission work only | missing/not-applicable |
+| `settings/code-standards.md` | Approved project code rules | appRoot-scoped project conventions | technical work with a registered Project rule sources reference only | missing |
 | `settings/prototype-style.md` | Prototype visual style reference | prototype generation consistency | prototype generation only | missing/not-applicable |
 
 ## Code Map
@@ -70,6 +71,20 @@ For target-state requirements, user instructions and approved active change arti
 - UI-related phases must read `settings/frontend.md` when present.
 - Prototype generation should read `settings/prototype-style.md` when present.
 - Backend-related phases must read `settings/backend.md` when present.
+```
+
+## Prototype Base Registration
+
+仅由 fp-prototype-init 在基座构建/刷新及既有主 manifest 的精确 diff 获批后，将此节加入/更新主 manifest；主 manifest 缺失、no-frontend、仅报告、跳过或未批准时不添加。全局入口仍为 fp-docs/manifest.md。原型局部 metadata 的 schema/所有权由 `${CLAUDE_PLUGIN_ROOT}/skills/_shared/prototype-contract.md` 定义，不复制到 intel 或人工风格设置。
+
+Mode 列记录实际模式（`static-modular` 或 `project-native`）；When To Read 与 Mode 一致，不要在 static 基座上声明需要构建。
+
+```markdown
+## Prototype Bases
+
+| App | App Root | Mode | Manifest | When To Read |
+| --- | --- | --- | --- | --- |
+| <app-id> | <verified app root> | `static-modular` | `prototype-bases/<app-id>/manifest.json` | only no-build static prototype work for this app; verify source/owned-file fingerprints live |
 ```
 
 ## Project Facts
@@ -218,6 +233,14 @@ Target: `fp-docs/settings/frontend.md`
 - Source roots:
 - Route locations:
 
+## Code Standards
+
+- Built-in preset: <vue | none | Unknown; select from verified application evidence>
+- Rule resources: <skills/_shared/code-standards/common.md + skills/_shared/code-standards/vue.md when matched; otherwise N/A; plugin-relative, not project paths>
+- Applies to: <appRoot, actual framework/version and dependency/entry evidence; one group per app>
+- Project rule sources: <verified project-relative rule paths and scope, or none>
+- Confirmed overrides: <rule IDs, scope and reasons, or none; unresolved items stay Unknown>
+
 ## Component Library and Imports
 
 - Library:
@@ -233,6 +256,12 @@ Target: `fp-docs/settings/frontend.md`
 
 - Design sources:
 - Mapping rules:
+
+## Prototype Base Reference
+
+- Selected app and root:
+- Base manifest: <approved prototype-bases/<app-id>/manifest.json pointer, or not initialized>
+- Source/build/preview rules: shared prototype-contract; verify current inputs before use.
 
 ## Preview and Visual Verification
 
@@ -256,6 +285,14 @@ Target: `fp-docs/settings/backend.md`
 - Framework:
 - Source roots:
 - API/router locations:
+
+## Code Standards
+
+- Built-in preset: <django | none | Unknown; select from verified application evidence>
+- Rule resources: <skills/_shared/code-standards/common.md + skills/_shared/code-standards/django.md when matched; otherwise N/A; plugin-relative, not project paths>
+- Applies to: <appRoot, actual framework/version and dependency/entry evidence; one group per app>
+- Project rule sources: <verified project-relative rule paths and scope, or none>
+- Confirmed overrides: <rule IDs, scope and reasons, or none; unresolved items stay Unknown>
 
 ## API / Service / Data Patterns
 
@@ -285,6 +322,31 @@ Target: `fp-docs/settings/backend.md`
 - <unknown backend/API/data/security items>
 ```
 
+## FeaturePilot Project Code Standards
+
+Target: `fp-docs/settings/code-standards.md`
+
+仅在用户逐文件批准创建、且适用端的 `Project rule sources` 已获批准登记时使用；不从一处存量写法生成强制规则。
+
+```markdown
+# FeaturePilot Project Code Standards
+
+## Rules
+
+No project-specific rules confirmed yet.
+
+## Rule Entry Format
+
+新增已证实的规则时，移除上方空状态行，并按 appRoot 逐条记录：
+
+### P001 — <简短规则名>
+
+- Rule ID: P001
+- Applies to: <appRoot、后端或前端及必要版本范围>
+- Rule: <可操作的项目约定>
+- Evidence: <项目明确决策或多个独立源码/测试位置及理由>
+```
+
 ## FeaturePilot Prototype Style
 
 Target: `fp-docs/settings/prototype-style.md`
@@ -294,7 +356,8 @@ Target: `fp-docs/settings/prototype-style.md`
 
 ## Usage
 
-- Use when creating or updating `fp-docs/changes/<slug>/prototype.html`.
+- Use when creating or updating a native `fp-docs/changes/<slug>/prototype/manifest.json` prototype or explicitly selected legacy `prototype.html`.
+- Native prototypes render real project components/styles; these settings are approved constraints, not a replacement implementation.
 
 ## Visual Sources
 
