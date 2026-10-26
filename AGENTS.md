@@ -36,6 +36,7 @@ Codex does not run Claude Code slash commands directly. Treat `/fp-*` names as w
 | A PRD, proposal, design, task plan, overview, or archive artifact is read, written, converted, validated, reviewed, or archived | `skills/_shared/artifact-layout.md` |
 | Requirement, proposal, or design questions can change scope, behavior, architecture, interfaces, or acceptance | `skills/_shared/decision-ledger.md` |
 | Code location, symbols, call/data flow, impact, graph setup/refresh, or post-write graph state is involved | `skills/_shared/codegraph.md` |
+| New frontend module, frontend refactor, or new frontend source files; ordinary edits only when explicitly requested | `skills/_shared/frontend-reuse-contract.md` |
 | Figma, frontend/UI planning or implementation, visual evidence, browser E2E, final review, or archive has UI-bearing scope | `skills/_shared/ui-e2e-contract.md` |
 
 When maintaining this repository itself, also follow root `CLAUDE.md`; it owns pull-request language and repository-specific CodeGraph integration constraints.
